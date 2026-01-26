@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Gallery</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; overflow-x: hidden; }
+
+    :root {
+      --content-background-base: #F7F5F0;
+      --content-background-elevated: #FFF;
+      --content-primary: #342E26;
+      --content-border-neutral: rgba(52, 46, 38, 0.08);
+      --rounded-4xl: 24px;
+      --rounded-full: 99999px;
+      --rounded-lg: 10px;
+    }
+
+    .gallery-container { max-width: 667px; margin: 40px auto; padding: 0 24px; display: flex; flex-direction: column; gap: 16px; }
+    .gallery-viewport { width: 100%; height: 65vh; max-height: 480px; display: flex; align-items: center; justify-content: center; position: relative; overflow: visible; }
+    .gallery-track { width: 100%; height: 100%; position: relative; }
+    .fullscreen-image-container .gallery-track { width: 100%; height: 100%; }
+
+    .gallery-slide {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transform: scale(0.95);
+      transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+    }
+    .gallery-slide.active { opacity: 1; transform: scale(1); pointer-events: auto; }
+    .gallery-slide img, .gallery-slide video {
+      max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block;
+      border-radius: var(--rounded-4xl);
+    }
+
+    .gallery-nav-btn {
+      width: 44px; height: 44px; padding: 12px; border-radius: var(--rounded-full);
+      border: 1px solid var(--content-border-neutral);
+      background: var(--content-background-elevated);
+      box-shadow: 0 0 2px 0 rgba(0,0,0,0.05), 0 4px 6px 0 rgba(0,0,0,0.02);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+    }
+    .gallery-nav-btn:hover { background: var(--content-background-base); }
+    .gallery-nav-btn:active { transform: scale(0.95); }
+    .gallery-nav-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    .thumbnail-nav-wrapper { display: flex; align-items: center; justify-content: space-between; }
+    .nav-controls { display: flex; gap: 8px; flex-shrink: 0; }
+    .thumbnail-container { flex: 1; display: flex; gap: 6px; overflow-x: auto; padding: 8px 0; scrollbar-width: none; -ms-overflow-style: none; }
+    .thumbnail-container::-webkit-scrollbar { display: none; }
+    .thumbnail-btn {
+      width: 48px; height: 48px; aspect-ratio: 1/1; border-radius: var(--rounded-lg); opacity: 0.8; overflow: hidden;
+      cursor: pointer; border: none; transition: opacity 0.15s ease; position: relative; background: var(--content-background-base);
+    }
+    .thumbnail-btn img, .thumbnail-btn video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .thumbnail-border-overlay {
+      position: absolute; inset: 0; border: 2px solid var(--content-primary); border-radius: var(--rounded-lg);
+      opacity: 0; pointer-events: none; transition: opacity 0.15s ease;
+    }
+    .thumbnail-btn:hover, .thumbnail-btn.active { opacity: 1; }
+    .thumbnail-btn:hover .thumbnail-border-overlay, .thumbnail-btn.active .thumbnail-border-overlay { opacity: 1; }
+
+    /* Full-screen overlay */
+    .fullscreen-overlay {
+      position: fixed; inset: 0; background: var(--content-background-base); z-index: 9999; pointer-events: auto;
+      display: none; align-items: center; justify-content: center; opacity: 0;
+      transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fullscreen-overlay.active { opacity: 1; }
+    .fullscreen-content {
+      position: fixed; inset: 0; display: flex; margin: 8px; padding: 12px;
+      border-radius: 20px; border: 1px solid var(--content-border-neutral); background: var(--content-background-elevated);
+      overflow: hidden; transform: scale(0.95); opacity: 0;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .fullscreen-overlay.active .fullscreen-content { transform: scale(1); opacity: 1; }
+    .fullscreen-image-container { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; }
+
+    /* Close button: desktop = transparent, hover shows overlay bg */
+    .fullscreen-close-btn {
+      position: absolute; top: 24px; right: 24px; width: 40px; height: 40px; border-radius: 50%;
+      background: transparent; border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.2s ease; z-index: 10001;
+    }
+    .fullscreen-close-btn:hover { background: var(--content-background-base); }
+    .fullscreen-close-btn svg { width: 20px; height: 20px; stroke: var(--content-primary); }
+
+    /* Fullscreen nav arrows: desktop = same as close (transparent, hover overlay) */
+    .fullscreen-nav-controls {
+      position: absolute; bottom: 24px; right: 24px; display: flex; gap: 8px; z-index: 10001;
+    }
+    .fullscreen-nav-btn {
+      width: 44px; height: 44px; padding: 12px; border-radius: var(--rounded-full);
+      border: 1px solid var(--content-border-neutral); background: var(--content-background-elevated);
+      box-shadow: 0 0 2px 0 rgba(0,0,0,0.05), 0 4px 6px 0 rgba(0,0,0,0.02);
+      cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+    }
+    .fullscreen-nav-btn:hover { background: var(--content-background-base); }
+    .fullscreen-nav-btn:active { transform: scale(0.95); }
+    .fullscreen-nav-btn svg { width: 16px; height: 16px; flex-shrink: 0; stroke: var(--content-primary); }
+
+    .fullscreen-slide-wrapper { width: 100%; height: 100%; display: flex; flex-direction: row; align-items: center; padding-bottom: 20px; }
+    .fullscreen-slide { max-width: 100%; max-height: 100%; border-radius: 28px; display: flex; align-items: center; justify-content: center; padding: 80px; }
+    .fullscreen-slide img, .fullscreen-slide video { max-width: 100%; max-height: 100%; width: auto; height: 100%; object-fit: contain; display: block; border-radius: 28px; }
+
+    .fullscreen-thumbnails {
+      z-index: 1; touch-action: pan-x; margin-left: 24px; align-self: center;
+      display: flex; flex-direction: column; gap: 6px; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none;
+    }
+    .fullscreen-thumbnails::-webkit-scrollbar { display: none; }
+    .fullscreen-thumbnail-btn {
+      width: 48px; height: 48px; border-radius: var(--rounded-lg); opacity: 0.8; overflow: hidden;
+      cursor: pointer; border: none; background: var(--content-background-base); flex-shrink: 0; position: relative;
+    }
+    .fullscreen-thumbnail-btn img, .fullscreen-thumbnail-btn video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .fullscreen-thumbnail-btn .thumbnail-border-overlay { position: absolute; inset: 0; border: 2px solid var(--content-primary); border-radius: var(--rounded-lg); opacity: 0; pointer-events: none; }
+    .fullscreen-thumbnail-btn:hover, .fullscreen-thumbnail-btn.active { opacity: 1; }
+    .fullscreen-thumbnail-btn.active .thumbnail-border-overlay { opacity: 1; }
+    .gallery-slide.active { cursor: zoom-in; }
+    .fullscreen-slide.active, .fullscreen-slide.active img, .fullscreen-slide.active video { cursor: zoom-out; }
+
+    /* ----- Mobile fullscreen: arrows at bottom (40px), centered; close + arrows use overlay bg by default ----- */
+    @media (max-width: 768px) {
+      .fullscreen-overlay { padding: 0; }
+      .fullscreen-content { border-radius: 0; border: none; max-width: 100%; gap: 0; }
+      .fullscreen-thumbnails { display: none; }
+      .fullscreen-image-container { padding: 0; }
+      .fullscreen-image-container .gallery-slide,
+      .fullscreen-image-container .gallery-slide img,
+      .fullscreen-image-container .gallery-slide video { border-radius: 0; width: 100%; height: 100%; max-width: 100%; max-height: 100%; }
+
+      /* Pagination arrows: visible, 40px from bottom, centered, overlay bg by default */
+      .fullscreen-nav-controls {
+        display: flex;
+        position: absolute;
+        bottom: 40px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+      }
+      .fullscreen-nav-btn {
+        background: var(--content-background-base);
+      }
+      .fullscreen-nav-btn:hover {
+        background: rgba(52, 46, 38, 0.08);
+      }
+
+      /* Close button: overlay bg by default on mobile, white icon */
+      .fullscreen-close-btn {
+        top: 16px;
+        right: 16px;
+        background: var(--content-background-base);
+        color: #fff;
+      }
+      .fullscreen-close-btn svg {
+        stroke: #fff;
+      }
+      .fullscreen-close-btn:hover {
+        background: rgba(52, 46, 38, 0.12);
+      }
+
+      /* Arrow icons white on grey for better contrast */
+      .fullscreen-nav-btn {
+        color: #fff;
+      }
+      .fullscreen-nav-btn svg {
+        stroke: #fff;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="gallery-container">
+    <div class="gallery-viewport" id="galleryViewport">
+      <div class="gallery-track" id="galleryTrack"></div>
+    </div>
+    <div class="thumbnail-nav-wrapper">
+      <div class="thumbnail-container" id="thumbnails"></div>
+      <div class="nav-controls">
+        <button class="gallery-nav-btn prev" id="prevBtn" aria-label="Previous"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M9.99984 13.3332L4.6665 7.99985L9.99984 2.6665" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="gallery-nav-btn next" id="nextBtn" aria-label="Next"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6.00016 2.6665L11.3335 7.99985L6.00016 13.3332" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fullscreen-overlay" id="fullscreenOverlay">
+    <div class="fullscreen-content">
+      <button class="fullscreen-close-btn" id="fullscreenCloseBtn" aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="fullscreen-thumbnails" id="fullscreenThumbnails"></div>
+      <div class="fullscreen-image-container" id="fullscreenImageContainer"></div>
+      <div class="fullscreen-nav-controls">
+        <button class="fullscreen-nav-btn" id="fullscreenPrevBtn" aria-label="Previous"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M9.99984 13.3332L4.6665 7.99985L9.99984 2.6665" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="fullscreen-nav-btn" id="fullscreenNextBtn" aria-label="Next"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M6.00016 2.6665L11.3335 7.99985L6.00016 13.3332" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const galleryMedia = [
+      { type: 'image', src: 'assets/shop.app_products_7927504273591_dream-night-serum-with-bio-retinol-308d6ff2-04f9-45cf-8ff6-63f725893ce2.png' },
+      { type: 'image', src: 'https://picsum.photos/600/800?random=2' },
+      { type: 'image', src: 'https://picsum.photos/800/800?random=3' },
+    ];
+    let currentIndex = 0;
+    const track = document.getElementById('galleryTrack');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const thumbnailContainer = document.getElementById('thumbnails');
+    const fullscreenOverlay = document.getElementById('fullscreenOverlay');
+    const fullscreenImageContainer = document.getElementById('fullscreenImageContainer');
+    const fullscreenCloseBtn = document.getElementById('fullscreenCloseBtn');
+    const fullscreenPrevBtn = document.getElementById('fullscreenPrevBtn');
+    const fullscreenNextBtn = document.getElementById('fullscreenNextBtn');
+    const fullscreenThumbnails = document.getElementById('fullscreenThumbnails');
+    const galleryViewport = document.getElementById('galleryViewport');
+
+    function generateSlides() {
+      galleryMedia.forEach((media, i) => {
+        const slide = document.createElement('div');
+        slide.className = `gallery-slide ${i === 0 ? 'active' : ''}`;
+        if (media.type === 'image') { const img = document.createElement('img'); img.src = media.src; img.alt = `Image ${i + 1}`; slide.appendChild(img); }
+        track.appendChild(slide);
+      });
+    }
+    function generateThumbnails() {
+      galleryMedia.forEach((media, i) => {
+        const thumb = document.createElement('button');
+        thumb.className = `thumbnail-btn ${i === 0 ? 'active' : ''}`;
+        if (media.type === 'image') { const img = document.createElement('img'); img.src = media.src; img.alt = ''; thumb.appendChild(img); }
+        const overlay = document.createElement('div'); overlay.className = 'thumbnail-border-overlay'; thumb.appendChild(overlay);
+        thumb.addEventListener('click', () => goToSlide(i));
+        thumbnailContainer.appendChild(thumb);
+      });
+    }
+    function updateActiveStates() {
+      track.querySelectorAll('.gallery-slide').forEach((s, i) => s.classList.toggle('active', i === currentIndex));
+      thumbnailContainer.querySelectorAll('.thumbnail-btn').forEach((t, i) => t.classList.toggle('active', i === currentIndex));
+      const thumbs = thumbnailContainer.querySelectorAll('.thumbnail-btn');
+      if (thumbs[currentIndex]) thumbs[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+    function goToSlide(index) { if (index < 0 || index >= galleryMedia.length) return; currentIndex = index; updateActiveStates(); }
+    function goToPrev() { goToSlide(currentIndex === 0 ? galleryMedia.length - 1 : currentIndex - 1); }
+    function goToNext() { goToSlide(currentIndex === galleryMedia.length - 1 ? 0 : currentIndex + 1); }
+
+    prevBtn.addEventListener('click', goToPrev);
+    nextBtn.addEventListener('click', goToNext);
+
+    let touchStartX = 0, touchEndX = 0, touchMoved = false;
+    track.addEventListener('touchstart', (e) => { touchStartX = e.changedTouches[0].screenX; touchMoved = false; }, { passive: true });
+    track.addEventListener('touchmove', () => { touchMoved = true; }, { passive: true });
+    track.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      if (Math.abs(touchStartX - touchEndX) > 50) (touchStartX - touchEndX > 0) ? goToNext() : goToPrev();
+    }, { passive: true });
+
+    function generateFullscreenThumbnails() {
+      fullscreenThumbnails.innerHTML = '';
+      galleryMedia.forEach((media, i) => {
+        const thumb = document.createElement('button');
+        thumb.className = `fullscreen-thumbnail-btn ${i === currentIndex ? 'active' : ''}`;
+        if (media.type === 'image') { const img = document.createElement('img'); img.src = media.src; thumb.appendChild(img); }
+        const o = document.createElement('div'); o.className = 'thumbnail-border-overlay'; thumb.appendChild(o);
+        thumb.addEventListener('click', () => { currentIndex = i; updateActiveStates(); updateFSThumbs(); });
+        fullscreenThumbnails.appendChild(thumb);
+      });
+    }
+    function updateFSThumbs() {
+      fullscreenThumbnails.querySelectorAll('.fullscreen-thumbnail-btn').forEach((t, i) => t.classList.toggle('active', i === currentIndex));
+    }
+    function addFullscreenClasses() {
+      track.querySelectorAll('.gallery-slide').forEach(slide => {
+        slide.classList.add('fullscreen-slide');
+        if (!slide.parentElement.classList.contains('fullscreen-slide-wrapper')) {
+          const w = document.createElement('div'); w.className = 'fullscreen-slide-wrapper';
+          slide.parentNode.insertBefore(w, slide); w.appendChild(slide);
+        }
+      });
+    }
+    function removeFullscreenClasses() {
+      track.querySelectorAll('.fullscreen-slide-wrapper').forEach(w => {
+        const s = w.querySelector('.gallery-slide');
+        if (s) { s.classList.remove('fullscreen-slide'); w.parentNode.insertBefore(s, w); w.remove(); }
+      });
+    }
+    function openFullscreen() {
+      fullscreenOverlay.style.display = 'flex';
+      generateFullscreenThumbnails();
+      fullscreenImageContainer.appendChild(track);
+      addFullscreenClasses();
+      fullscreenOverlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+    function closeFullscreen() {
+      fullscreenOverlay.classList.remove('active');
+      document.body.style.overflow = '';
+      setTimeout(() => {
+        removeFullscreenClasses();
+        galleryViewport.appendChild(track);
+        fullscreenOverlay.style.display = 'none';
+      }, 400);
+    }
+    track.addEventListener('click', (e) => {
+      if (window.matchMedia('(max-width: 768px)').matches && touchMoved) return;
+      if (track.querySelector('.gallery-slide.active') && e.target.closest('.gallery-slide.active')) openFullscreen();
+    });
+    fullscreenCloseBtn.addEventListener('click', closeFullscreen);
+    fullscreenImageContainer.addEventListener('click', closeFullscreen);
+    fullscreenPrevBtn.addEventListener('click', (e) => { e.stopPropagation(); goToPrev(); updateFSThumbs(); });
+    fullscreenNextBtn.addEventListener('click', (e) => { e.stopPropagation(); goToNext(); updateFSThumbs(); });
+    document.addEventListener('keydown', (e) => {
+      if (fullscreenOverlay.classList.contains('active')) {
+        if (e.key === 'Escape') closeFullscreen();
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); goToPrev(); updateFSThumbs(); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); goToNext(); updateFSThumbs(); }
+      } else { if (e.key === 'ArrowLeft') goToPrev(); else if (e.key === 'ArrowRight') goToNext(); }
+    });
+    generateSlides();
+    generateThumbnails();
+    updateActiveStates();
+  </script>
+</body>
+</html>
