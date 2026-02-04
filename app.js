@@ -1,0 +1,2261 @@
+/* ==========================================================================
+   Brand Collab Finder - Main Application
+   ========================================================================== */
+
+import { jsonrepair } from 'https://esm.sh/jsonrepair';
+// Configuration
+const CONFIG = {
+  // All API keys are now server-side for security
+  // Gemini, SerpAPI, and OpenGraph are all proxied through /api/* endpoints
+  GEMINI_PROXY: '/api/gemini',
+  SERPAPI_PROXY: '/api/serpapi',
+  OPENGRAPH_PROXY: '/api/opengraph',
+  MAX_SEARCH_HISTORY: 10,
+  BATCH_SIZE: 5,
+  REQUEST_DELAY_MS: 200,
+  FETCH_TIMEOUT_MS: 5000,
+  STORAGE_KEYS: {
+    SEARCH_HISTORY: 'bcf_search_history',
+    FEEDBACK: 'bcf_feedback_corpus',
+    RESULTS_CACHE: 'bcf_results_cache'
+  },
+  FAVICON_PRIMARY: (domain) => `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+  FAVICON_FALLBACK: (domain) => `https://icons.duckduckgo.com/ip3/${domain}.ico`
+};
+
+// State
+let currentSearchId = null;
+let currentResults = null;
+
+// DOM Elements
+const elements = {
+  // Header
+  siteHeader: document.getElementById('siteHeader'),
+  siteHeaderLogo: document.getElementById('siteHeaderLogo'),
+  siteHeaderResultsNav: document.getElementById('siteHeaderResultsNav'),
+  headerBackBtn: document.getElementById('headerBackBtn'),
+  headerStartOverBtn: document.getElementById('headerStartOverBtn'),
+
+  // Sections
+  appContainer: document.querySelector('.app-container'),
+  landingSection: document.getElementById('landingSection'),
+  loadingSection: document.getElementById('loadingSection'),
+  resultsSection: document.getElementById('resultsSection'),
+  emptySection: document.getElementById('emptySection'),
+  errorSection: document.getElementById('errorSection'),
+  floatingTiles: document.getElementById('floatingTiles'),
+
+  // Forms & Inputs
+  searchForm: document.getElementById('searchForm'),
+  searchInput: document.getElementById('searchInput'),
+  resultsSearchForm: document.getElementById('resultsSearchForm'),
+  resultsSearchInput: document.getElementById('resultsSearchInput'),
+
+  // History (Landing Page)
+  searchHistoryDropdown: document.getElementById('searchHistoryDropdown'),
+  historyList: document.getElementById('historyList'),
+
+  // History (Results Page)
+  resultsSearchHistoryDropdown: document.getElementById('resultsSearchHistoryDropdown'),
+  resultsHistoryList: document.getElementById('resultsHistoryList'),
+
+  // Results
+  searchedBrandCardContainer: document.getElementById('searchedBrandCardContainer'),
+  brandsGrid: document.getElementById('brandsGrid'),
+  productsGrid: document.getElementById('productsGrid'),
+
+  // Loading
+  loadingText: document.getElementById('loadingText'),
+  loadingUrl: document.getElementById('loadingUrl'),
+  loadingFavicon: document.getElementById('loadingFavicon'),
+
+  // Feedback
+  feedbackSection: document.getElementById('feedbackSection'),
+  feedbackPositive: document.getElementById('feedbackPositive'),
+  feedbackNegative: document.getElementById('feedbackNegative'),
+  feedbackThanks: document.getElementById('feedbackThanks'),
+
+  // Empty/Error
+  tryAgainBtn: document.getElementById('tryAgainBtn'),
+  errorRetryBtn: document.getElementById('errorRetryBtn'),
+  errorMessage: document.getElementById('errorMessage'),
+
+  // Popover
+  socialPopover: document.getElementById('socialPopover'),
+
+  // Typing placeholders
+  typingPlaceholder: document.getElementById('typingPlaceholder'),
+  resultsTypingPlaceholder: document.getElementById('resultsTypingPlaceholder')
+};
+
+/* --------------------------------------------------------------------------
+   URL State (persistent search results via ?q= param)
+   -------------------------------------------------------------------------- */
+const SEARCH_PARAM = 'q';
+
+function getSearchFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get(SEARCH_PARAM);
+  return q ? q.trim() : null;
+}
+
+function updateUrlForSearch(domain) {
+  const url = new URL(window.location.href);
+  url.searchParams.set(SEARCH_PARAM, domain);
+  history.pushState({ q: domain }, '', url.toString());
+}
+
+function clearSearchFromUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete(SEARCH_PARAM);
+  history.replaceState(null, '', url.toString());
+}
+
+function goToLanding() {
+  clearSearchFromUrl();
+  showSection('landing');
+  if (elements.searchInput) elements.searchInput.value = '';
+  if (elements.searchInput) elements.searchInput.focus();
+}
+
+/* --------------------------------------------------------------------------
+   Results Cache (sessionStorage - survives refresh, cleared when tab closes)
+   -------------------------------------------------------------------------- */
+
+function getCacheKey(domain) {
+  return `${CONFIG.STORAGE_KEYS.RESULTS_CACHE}_${domain.toLowerCase()}`;
+}
+
+function getCachedResults(domain) {
+  try {
+    const key = getCacheKey(domain);
+    const raw = sessionStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedResults(domain, data) {
+  try {
+    const key = getCacheKey(domain);
+    sessionStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.warn('Failed to cache results:', e);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Utility Functions
+   -------------------------------------------------------------------------- */
+
+function generateId() {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function normalizeUrl(input) {
+  if (input == null || typeof input !== 'string') return '';
+  let url = input.trim().toLowerCase();
+
+  // Remove protocol if present
+  url = url.replace(/^(https?:\/\/)?(www\.)?/, '');
+
+  // Remove trailing slashes and paths for domain extraction
+  const domain = url.split('/')[0];
+
+  return domain;
+}
+
+function extractDomain(url) {
+  if (url == null || typeof url !== 'string' || !url.trim()) return '';
+  try {
+    const urlStr = url.trim();
+    const fullUrl = urlStr.startsWith('http') ? urlStr : 'https://' + urlStr;
+    const urlObj = new URL(fullUrl);
+    return urlObj.hostname.replace('www.', '');
+  } catch {
+    return normalizeUrl(url);
+  }
+}
+
+function isValidUrl(input) {
+  const domain = normalizeUrl(input);
+  // Basic domain validation
+  const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]?\.[a-zA-Z]{2,}$/;
+  return domainRegex.test(domain);
+}
+
+function getFaviconUrl(domain) {
+  return CONFIG.FAVICON_PRIMARY(domain);
+}
+
+/**
+ * Fetch Open Graph metadata (image, favicon, etc.) from OpenGraph.io API via proxy.
+ * @param {string} url - Page URL to fetch
+ * @returns {Promise<{imageUrl?: string, faviconUrl?: string}>}
+ */
+async function fetchOpenGraphData(url) {
+  try {
+    if (url == null || typeof url !== 'string' || !url.trim()) {
+      console.warn('[OpenGraph] Invalid URL provided:', url);
+      return { imageUrl: null, faviconUrl: null };
+    }
+    
+    const fullUrl = url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`;
+    const apiUrl = `${CONFIG.OPENGRAPH_PROXY}?url=${encodeURIComponent(fullUrl)}`;
+    
+    const res = await fetch(apiUrl);
+    
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => 'Unknown error');
+      console.warn(`[OpenGraph] API error ${res.status} for ${fullUrl}: ${errorText}`);
+      return { imageUrl: null, faviconUrl: null };
+    }
+    
+    const data = await res.json();
+    
+    // Log raw response for debugging
+    console.log(`[OpenGraph] Raw response for ${fullUrl}:`, JSON.stringify(data));
+    
+    const result = {
+      imageUrl: data?.imageUrl && typeof data.imageUrl === 'string' ? data.imageUrl : null,
+      faviconUrl: data?.faviconUrl && typeof data.faviconUrl === 'string' ? data.faviconUrl : null
+    };
+    
+    if (result.imageUrl) {
+      console.log(`[OpenGraph] ✓ Image found: ${result.imageUrl}`);
+    } else {
+      console.warn(`[OpenGraph] ✗ No image in response for: ${fullUrl}`);
+    }
+    
+    return result;
+  } catch (err) {
+    console.error('[OpenGraph] Network error:', err.message || err);
+    return { imageUrl: null, faviconUrl: null };
+  }
+}
+
+/* --------------------------------------------------------------------------
+   LocalStorage Helpers
+   -------------------------------------------------------------------------- */
+
+function getSearchHistory() {
+  try {
+    const history = localStorage.getItem(CONFIG.STORAGE_KEYS.SEARCH_HISTORY);
+    return history ? JSON.parse(history) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSearchHistory(history) {
+  try {
+    localStorage.setItem(CONFIG.STORAGE_KEYS.SEARCH_HISTORY, JSON.stringify(history));
+  } catch (e) {
+    console.error('Failed to save search history:', e);
+  }
+}
+
+function addToSearchHistory(url) {
+  const history = getSearchHistory();
+  const domain = extractDomain(url);
+
+  // Remove if already exists
+  const filtered = history.filter(item => item.domain !== domain);
+
+  // Add to beginning
+  filtered.unshift({
+    domain,
+    url: domain,
+    timestamp: Date.now()
+  });
+
+  // Keep only last N items
+  const trimmed = filtered.slice(0, CONFIG.MAX_SEARCH_HISTORY);
+
+  saveSearchHistory(trimmed);
+  return trimmed;
+}
+
+function clearSearchHistory() {
+  saveSearchHistory([]);
+}
+
+function removeFromSearchHistory(domain) {
+  const history = getSearchHistory().filter(item => item.domain !== domain);
+  saveSearchHistory(history);
+}
+
+function getFeedbackHistory() {
+  try {
+    const feedback = localStorage.getItem(CONFIG.STORAGE_KEYS.FEEDBACK);
+    return feedback ? JSON.parse(feedback) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFeedback(searchId, inputUrl, results, rating) {
+  try {
+    const feedback = getFeedbackHistory();
+    feedback.push({
+      searchId,
+      inputUrl,
+      results: results.map(r => ({ name: r.name, url: r.url })),
+      rating,
+      timestamp: Date.now()
+    });
+
+    // Keep last 100 feedback entries
+    const trimmed = feedback.slice(-100);
+    localStorage.setItem(CONFIG.STORAGE_KEYS.FEEDBACK, JSON.stringify(trimmed));
+  } catch (e) {
+    console.error('Failed to save feedback:', e);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   UI State Management
+   -------------------------------------------------------------------------- */
+
+function showSection(sectionName) {
+  // Hide all sections
+  elements.landingSection.classList.add('hidden');
+  elements.loadingSection.classList.add('hidden');
+  elements.resultsSection.classList.add('hidden');
+  elements.emptySection.classList.add('hidden');
+  elements.errorSection.classList.add('hidden');
+
+  // Show requested section
+  switch (sectionName) {
+    case 'landing':
+      elements.landingSection.classList.remove('hidden');
+      document.querySelector('.app-container').classList.remove('showing-results');
+      document.body.classList.remove('showing-results');
+      elements.floatingTiles.classList.remove('whip-out');
+      if (elements.siteHeader) {
+        elements.siteHeader.classList.remove('header-nav--results');
+      }
+      if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.remove('hidden');
+      if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.add('hidden');
+      break;
+    case 'loading':
+      elements.loadingSection.classList.remove('hidden');
+      document.querySelector('.app-container').classList.add('showing-results');
+      document.body.classList.add('showing-results');
+      resetTileTilt();
+      if (elements.siteHeader) {
+        elements.siteHeader.classList.remove('header-nav--results');
+      }
+      if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.remove('hidden');
+      if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.add('hidden');
+      break;
+    case 'results':
+      elements.resultsSection.classList.remove('hidden');
+      document.querySelector('.app-container').classList.add('showing-results');
+      document.body.classList.add('showing-results');
+      resetTileTilt();
+      if (elements.siteHeader) {
+        elements.siteHeader.classList.add('header-nav--results');
+      }
+      if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.add('hidden');
+      if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.remove('hidden');
+      break;
+    case 'empty':
+      elements.emptySection.classList.remove('hidden');
+      document.querySelector('.app-container').classList.add('showing-results');
+      document.body.classList.add('showing-results');
+      resetTileTilt();
+      if (elements.siteHeader) {
+        elements.siteHeader.classList.add('header-nav--results');
+      }
+      if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.add('hidden');
+      if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.remove('hidden');
+      break;
+    case 'error':
+      elements.errorSection.classList.remove('hidden');
+      document.querySelector('.app-container').classList.add('showing-results');
+      document.body.classList.add('showing-results');
+      resetTileTilt();
+      if (elements.siteHeader) {
+        elements.siteHeader.classList.add('header-nav--results');
+      }
+      if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.add('hidden');
+      if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.remove('hidden');
+      break;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Search History UI
+   -------------------------------------------------------------------------- */
+
+function renderSearchHistory(targetList = null) {
+  const history = getSearchHistory();
+
+  // If no target specified, render to both lists
+  const lists = targetList ? [targetList] : [elements.historyList, elements.resultsHistoryList];
+
+  lists.forEach(list => {
+    if (!list) return;
+
+    if (history.length === 0) {
+      list.innerHTML = '<li class="history-empty">No recent searches</li>';
+      return;
+    }
+
+    list.innerHTML = history.map(item => `
+      <li class="history-item" data-url="${item.domain}">
+        <img
+          src="${getFaviconUrl(item.domain)}"
+          alt=""
+          class="history-item-favicon"
+          onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23ccc%22><rect width=%2224%22 height=%2224%22 rx=%224%22/></svg>'"
+        >
+        <span class="history-item-url">${item.domain}</span>
+        <button type="button" class="history-item-remove-btn" data-url="${item.domain}" aria-label="Remove ${item.domain} from history">
+          <svg class="history-item-remove-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </li>
+    `).join('');
+  });
+}
+
+function showSearchHistory(dropdown = elements.searchHistoryDropdown) {
+  renderSearchHistory();
+  dropdown.classList.add('visible');
+  // Add class to parent form for connected styling
+  const parentForm = dropdown.closest('.search-form');
+  if (parentForm) {
+    parentForm.classList.add('dropdown-open');
+  }
+}
+
+function hideSearchHistory(dropdown = null) {
+  if (dropdown) {
+    dropdown.classList.remove('visible');
+    // Remove class from parent form
+    const parentForm = dropdown.closest('.search-form');
+    if (parentForm) {
+      parentForm.classList.remove('dropdown-open');
+    }
+  } else {
+    // Hide all dropdowns
+    elements.searchHistoryDropdown.classList.remove('visible');
+    elements.searchForm.classList.remove('dropdown-open');
+    if (elements.resultsSearchHistoryDropdown) {
+      elements.resultsSearchHistoryDropdown.classList.remove('visible');
+      elements.resultsSearchForm.classList.remove('dropdown-open');
+    }
+  }
+}
+
+function hideAllSearchHistoryDropdowns() {
+  elements.searchHistoryDropdown.classList.remove('visible');
+  elements.searchForm.classList.remove('dropdown-open');
+  if (elements.resultsSearchHistoryDropdown) {
+    elements.resultsSearchHistoryDropdown.classList.remove('visible');
+    elements.resultsSearchForm.classList.remove('dropdown-open');
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Results Rendering
+   -------------------------------------------------------------------------- */
+
+function hasAnySocialLink(social) {
+  const s = social && typeof social === 'object' ? social : {};
+  return !!(s.tiktok || s.instagram || s.facebook);
+}
+
+function buildFallbackSearchedBrand(domain) {
+  const fullUrl = domain.startsWith('http') ? domain : `https://${domain}`;
+  const displayName = domain.replace(/^(www\.)?/, '').split('.')[0];
+  const friendlyName = displayName.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return {
+    name: friendlyName,
+    url: fullUrl,
+    description: `${friendlyName} is a brand selling online. Visit their website to explore their product range and categories.`
+  };
+}
+
+function createSearchedBrandCard(searchedBrand) {
+  const url = searchedBrand?.url || '';
+  const domain = extractDomain(url);
+  const fullUrl = url && url.startsWith('http') ? url : (url ? `https://${url}` : '#');
+  const imageUrl = searchedBrand.imageUrl || '';
+  const faviconUrl = searchedBrand.faviconUrl || getFaviconUrl(domain);
+  const imgSrc = imageUrl || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
+
+  const card = document.createElement('a');
+  card.className = 'searched-brand-card';
+  card.href = fullUrl;
+  card.target = '_blank';
+  card.rel = 'noopener noreferrer';
+  card.dataset.url = fullUrl;
+
+  card.innerHTML = `
+    <div class="searched-brand-card-image">
+      <img
+        src="${imgSrc}"
+        alt="${searchedBrand.name}"
+        loading="eager"
+      >
+    </div>
+    <div class="searched-brand-card-content">
+      <div class="searched-brand-card-main">
+        <div class="searched-brand-card-header">
+          <img
+            src="${faviconUrl}"
+            alt="${searchedBrand.name}"
+            class="searched-brand-card-favicon"
+            onerror="this.src='${getFaviconUrl(domain)}'; this.onerror=null;"
+          >
+          <div class="searched-brand-card-info">
+            <div class="searched-brand-card-name">${searchedBrand.name}</div>
+            <div class="searched-brand-card-url">${domain}</div>
+          </div>
+        </div>
+        <p class="searched-brand-card-description">${searchedBrand.description}</p>
+      </div>
+      <div class="searched-brand-card-external-wrapper">
+        <span class="icon-button icon-button--medium searched-brand-card-external" aria-label="Open in new tab">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </span>
+      </div>
+    </div>
+  `;
+
+  return card;
+}
+
+function createBrandCard(brand, index) {
+  const url = brand?.url || '';
+  const domain = extractDomain(url);
+  const fullUrl = url && url.startsWith('http') ? url : (url ? `https://${url}` : '#');
+  const card = document.createElement('div');
+  card.className = 'result-card';
+  card.style.animationDelay = `${index * 0.05}s`;
+  card.dataset.url = fullUrl;
+  card.dataset.social = JSON.stringify(brand.social || {});
+
+  const showMenu = hasAnySocialLink(brand.social);
+  card.innerHTML = `
+    <div class="card-header-wrapper">
+      <div class="card-header">
+        <img
+          src="${getFaviconUrl(domain)}"
+          alt="${brand.name}"
+          class="card-favicon"
+          onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23ccc%22><rect width=%2224%22 height=%2224%22 rx=%224%22/></svg>'"
+        >
+        <div class="card-info">
+          <div class="card-name">${brand.name}</div>
+          <div class="card-url">${domain}</div>
+        </div>
+        ${showMenu ? `<button class="card-menu-btn" aria-label="More options">
+          <svg class="card-menu-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm8 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm8 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Z" clip-rule="evenodd"/></svg>
+        </button>` : ''}
+      </div>
+    </div>
+    ${brand.reason ? `<div class="card-reason-bubble"><p class="card-reason">${brand.reason}</p></div>` : ''}
+  `;
+
+  return card;
+}
+
+function createProductCard(product, index) {
+  const url = product?.url || '';
+  const domain = extractDomain(url);
+  const fullUrl = url && url.startsWith('http') ? url : (url ? `https://${url}` : '#');
+  const imageUrl = product.imageUrl || '';
+  const faviconUrl = product.faviconUrl || getFaviconUrl(domain);
+  
+  // Debug: log what image we're using
+  console.log(`[Card] ${product.productName}: imageUrl=${imageUrl ? imageUrl.substring(0, 50) + '...' : 'NONE'}`);
+  
+  // Use product image, or favicon as fallback, or empty SVG as last resort
+  let imgSrc = imageUrl;
+  if (!imgSrc && faviconUrl) {
+    // If no product image but we have favicon, use that scaled up
+    console.log(`[Card] ${product.productName}: Falling back to favicon`);
+    imgSrc = faviconUrl;
+  }
+  if (!imgSrc) {
+    imgSrc = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E";
+  }
+
+  const card = document.createElement('div');
+  card.className = 'product-card';
+  card.style.animationDelay = `${index * 0.05}s`;
+  card.dataset.url = fullUrl;
+  card.dataset.social = JSON.stringify(product.social || {});
+
+  const showMenu = hasAnySocialLink(product.social);
+  card.innerHTML = `
+    <div class="product-image-container">
+      <img
+        src="${imgSrc}"
+        alt="${product.productName}"
+        class="product-image"
+        loading="lazy"
+        onerror="this.style.display='none'; this.parentElement.classList.add('no-image');"
+      >
+      ${showMenu ? `<button class="product-menu-btn card-menu-btn" aria-label="More options">
+        <svg class="card-menu-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M2 12a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm8 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Zm8 0a2 2 0 1 1 4 0 2 2 0 0 1-4 0Z" clip-rule="evenodd"/></svg>
+      </button>` : ''}
+    </div>
+    <div class="product-info">
+      <div class="product-brand-row">
+        <img
+          src="${faviconUrl}"
+          alt="${product.brandName}"
+          class="product-favicon"
+          onerror="this.src='${getFaviconUrl(domain)}'; this.onerror=null;"
+        >
+        <span class="product-brand-name">${product.brandName}</span>
+      </div>
+      <div class="product-name">${product.productName}</div>
+    </div>
+  `;
+
+  return card;
+}
+
+function renderResults(brands, products, searchedBrand = null) {
+  // Log products data to verify images are present
+  console.log(`[Render] Rendering ${products.length} products`);
+  const withImages = products.filter(p => p.imageUrl);
+  const withoutImages = products.filter(p => !p.imageUrl);
+  console.log(`[Render] Products with images: ${withImages.length}, without: ${withoutImages.length}`);
+  if (withoutImages.length > 0) {
+    console.log(`[Render] Products missing images:`, withoutImages.map(p => p.productName));
+  }
+  
+  // Clear existing
+  elements.brandsGrid.innerHTML = '';
+  elements.productsGrid.innerHTML = '';
+  if (elements.searchedBrandCardContainer) {
+    elements.searchedBrandCardContainer.innerHTML = '';
+  }
+
+  // Render searched brand card at top
+  if (searchedBrand && elements.searchedBrandCardContainer) {
+    const card = createSearchedBrandCard(searchedBrand);
+    elements.searchedBrandCardContainer.appendChild(card);
+  }
+
+  // Render brands
+  brands.forEach((brand, index) => {
+    const card = createBrandCard(brand, index);
+    elements.brandsGrid.appendChild(card);
+  });
+
+  // Render products
+  products.forEach((product, index) => {
+    const card = createProductCard(product, index);
+    elements.productsGrid.appendChild(card);
+  });
+
+  // Reset feedback state
+  elements.feedbackPositive.classList.remove('selected');
+  elements.feedbackNegative.classList.remove('selected');
+  elements.feedbackThanks.classList.add('hidden');
+  elements.feedbackSection.style.pointerEvents = 'auto';
+}
+
+/* --------------------------------------------------------------------------
+   Social Media Popover
+   -------------------------------------------------------------------------- */
+
+let activePopoverCard = null;
+
+function showSocialPopover(button, socialData) {
+  const popover = elements.socialPopover;
+  const rect = button.getBoundingClientRect();
+  const parentCard = button.closest('.result-card') || button.closest('.product-card');
+
+  // Clear previous popover card state
+  if (activePopoverCard) {
+    activePopoverCard.classList.remove('popover-open');
+  }
+  activePopoverCard = parentCard;
+  if (activePopoverCard) {
+    activePopoverCard.classList.add('popover-open');
+  }
+
+  // Update links - hide unavailable, show and set href for available
+  const tiktokLink = popover.querySelector('[data-platform="tiktok"]');
+  const instagramLink = popover.querySelector('[data-platform="instagram"]');
+  const facebookLink = popover.querySelector('[data-platform="facebook"]');
+
+  if (socialData.tiktok) {
+    tiktokLink.href = socialData.tiktok.startsWith('http') ? socialData.tiktok : `https://tiktok.com/@${socialData.tiktok}`;
+    tiktokLink.classList.remove('hidden');
+  } else {
+    tiktokLink.classList.add('hidden');
+  }
+
+  if (socialData.instagram) {
+    instagramLink.href = socialData.instagram.startsWith('http') ? socialData.instagram : `https://instagram.com/${socialData.instagram}`;
+    instagramLink.classList.remove('hidden');
+  } else {
+    instagramLink.classList.add('hidden');
+  }
+
+  if (socialData.facebook) {
+    facebookLink.href = socialData.facebook.startsWith('http') ? socialData.facebook : `https://facebook.com/${socialData.facebook}`;
+    facebookLink.classList.remove('hidden');
+  } else {
+    facebookLink.classList.add('hidden');
+  }
+
+  // Append popover to card so it scrolls with the page (not fixed in viewport)
+  parentCard.appendChild(popover);
+
+  // Position 4px below the three-dot menu, relative to the card
+  const cardRect = parentCard.getBoundingClientRect();
+  const top = rect.bottom - cardRect.top + 4;
+  const popoverWidth = 220; // matches .social-popover min-width
+  const isProductCard = parentCard.classList.contains('product-card');
+  const cardWidth = parentCard.offsetWidth;
+  let left;
+  if (isProductCard) {
+    // Product cards: menu is top-right, right-align popover to avoid overflowing adjacent cards
+    left = Math.max(0, Math.min(rect.right - cardRect.left - popoverWidth, cardWidth - popoverWidth));
+  } else {
+    // Result cards: center popover under the menu button
+    left = Math.max(0, rect.left - cardRect.left - (popoverWidth / 2) + (rect.width / 2));
+  }
+  popover.style.top = `${top}px`;
+  popover.style.left = `${left}px`;
+
+  // Show
+  popover.classList.remove('hidden');
+}
+
+function hideSocialPopover() {
+  const popover = elements.socialPopover;
+  popover.classList.add('hidden');
+  // Move popover back to body (original location) when hidden
+  if (popover.parentNode && popover.parentNode !== document.body) {
+    document.body.appendChild(popover);
+  }
+  if (activePopoverCard) {
+    activePopoverCard.classList.remove('popover-open');
+    activePopoverCard = null;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   AI Integration - Gemini API
+   -------------------------------------------------------------------------- */
+
+function buildFeedbackContext() {
+  const feedback = getFeedbackHistory();
+  if (feedback.length === 0) return '';
+
+  const positive = feedback.filter(f => f.rating === 'positive');
+  const negative = feedback.filter(f => f.rating === 'negative');
+
+  let context = '\n\nHISTORICAL FEEDBACK (use to improve relevance):\n';
+
+  if (positive.length > 0) {
+    const positiveBrands = positive.flatMap(f => f.results.map(r => r.name)).slice(-20);
+    context += `Users responded positively to brands like: ${positiveBrands.join(', ')}\n`;
+  }
+
+  if (negative.length > 0) {
+    const negativeBrands = negative.flatMap(f => f.results.map(r => r.name)).slice(-10);
+    context += `Users responded negatively to brands like: ${negativeBrands.join(', ')}\n`;
+  }
+
+  context += 'Optimize for brands similar to positive examples.\n';
+
+  return context;
+}
+
+// ============================================
+// LOADING MESSAGES
+// ============================================
+const LOADING_MESSAGES = [
+  "Researching your brand...",
+  "Analyzing products, audience & market position...",
+  "Finding complementary brands...",
+  "Verifying product recommendations...",
+  "Fetching product images...",
+  "Finalizing results..."
+];
+
+// ============================================
+// MAIN FUNCTION
+// ============================================
+async function discoverComplementaryBrands(url, { onProgress } = {}) {
+  const domain = extractDomain(url);
+  const brandName = extractBrandName(domain);
+  const feedbackContext = buildFeedbackContext();
+
+  const updateProgress = (index) => {
+    if (onProgress && typeof onProgress === 'function') {
+      onProgress(LOADING_MESSAGES[index] ?? LOADING_MESSAGES[0]);
+    }
+  };
+
+  console.log(`[Discovery] Starting for: ${domain} (brand: ${brandName})`);
+
+  try {
+    // ========================================
+    // PHASE 1: Deep Brand Analysis
+    // ========================================
+    updateProgress(0); // "Researching your brand..."
+
+    const brandProfile = await analyzeBrand(domain);
+    const resolvedBrandProfile = brandProfile.brandProfile || brandProfile;
+
+    updateProgress(1); // "Analyzing products, audience & market position..."
+
+    // ========================================
+    // PHASE 2: Get Brand & Product Recommendations (Gemini)
+    // ========================================
+    updateProgress(2); // "Finding complementary brands..."
+
+    const recommendations = await getRecommendations(resolvedBrandProfile, brandName, domain, feedbackContext);
+
+    // Augment brands with grounding metadata
+    const augmentedResults = augmentWithGroundingMetadata(recommendations, null);
+    
+    // Sanitize brand URLs
+    const brands = (augmentedResults.brands || []).map(ensureHttps);
+
+    // ========================================
+    // PHASE 3: Verify Product URLs with SerpAPI
+    // ========================================
+    updateProgress(3); // "Verifying product recommendations..."
+
+    // Filter out source brand products first
+    const rawProducts = augmentedResults.products || [];
+    console.log(`[Discovery] Raw products from AI: ${rawProducts.length}`);
+    
+    const filteredProducts = filterSourceBrandProducts(rawProducts, brandName);
+    console.log(`[Discovery] After filtering source brand: ${filteredProducts.length}`);
+
+    // Verify and enrich product URLs with SerpAPI
+    const verifiedProducts = await verifyProductUrlsWithSerpApi(filteredProducts, brandName);
+    console.log(`[Discovery] After SerpAPI verification: ${verifiedProducts.length}`);
+
+    // ========================================
+    // PHASE 4: Fetch OG Images for Products
+    // ========================================
+    updateProgress(4); // "Fetching product images..."
+
+    const productsWithImages = await enrichProductsWithImages(verifiedProducts);
+
+    // ========================================
+    // Finalize Results
+    // ========================================
+    updateProgress(5); // "Finalizing results..."
+
+    // Build searchedBrand from analysis
+    let searchedBrand = ensureHttps(resolvedBrandProfile);
+
+    // Fetch OG image for searched brand if missing
+    if (!searchedBrand.imageUrl && searchedBrand.url) {
+      searchedBrand.imageUrl = await fetchOgImageUrl(searchedBrand.url);
+    }
+
+    console.log(`[Discovery] Complete. Found ${brands.length} brands, ${productsWithImages.length} products`);
+
+    return {
+      searchedBrand: {
+        name: searchedBrand.name,
+        url: searchedBrand.url,
+        imageUrl: searchedBrand.imageUrl,
+        description: searchedBrand.description,
+        brandDNA: searchedBrand.brandDNA,
+        targetCustomer: searchedBrand.targetCustomer
+      },
+      brands,
+      products: productsWithImages
+    };
+
+  } catch (error) {
+    console.error('[Discovery] Error:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// PHASE 1: Brand Analysis
+// ============================================
+async function analyzeBrand(domain) {
+  const prompt = `You are a brand strategist with deep expertise in DTC e-commerce, CPG, and lifestyle brands.
+
+TASK: Perform a comprehensive analysis of this brand before we identify collaboration partners.
+
+INPUT URL: ${domain}
+
+Use web search to research this brand thoroughly. Visit their website, look up press coverage, social media presence, and any available information.
+
+Return your analysis as JSON:
+
+{
+  "brandProfile": {
+    "name": "Brand Name",
+    "url": "https://full-url.com",
+    "tagline": "Their tagline or positioning statement if available",
+    
+    "productAnalysis": {
+      "primaryCategory": "e.g., Specialty Foods, Skincare, Home Goods",
+      "subcategories": ["specific product types they sell"],
+      "heroProducts": ["their 2-3 most popular/signature items"],
+      "priceRange": {
+        "tier": "budget|mid-market|premium|luxury",
+        "typicalPrice": "$XX-$XX range"
+      }
+    },
+    
+    "brandDNA": {
+      "aesthetic": "2-3 words describing visual style (e.g., 'minimalist California', 'rustic artisanal', 'bold maximalist')",
+      "personality": "2-3 words describing brand voice (e.g., 'playful irreverent', 'sophisticated educational', 'warm approachable')",
+      "coreValues": ["sustainability", "craftsmanship", "innovation", etc.],
+      "originStory": "1 sentence on founding story or brand ethos if known"
+    },
+    
+    "targetCustomer": {
+      "persona": "Specific description (e.g., 'health-conscious millennials who cook at home', 'design-forward homeowners')",
+      "lifestyle": "What broader lifestyle does this customer lead?",
+      "occasions": ["when/why they buy these products"],
+      "adjacentInterests": ["what else this customer likely cares about"]
+    },
+    
+    "marketPosition": {
+      "competitors": ["2-3 direct competitors"],
+      "differentiator": "What makes them unique vs competitors",
+      "brandStage": "emerging|growing|established|iconic"
+    },
+    
+    "description": "Exactly 3 sentences: (1) What they sell and their unique approach, (2) Who their customer is, (3) What makes the brand special or noteworthy."
+  }
+}
+
+Be specific and insightful. This analysis will drive high-quality collaboration recommendations.`;
+
+  const response = await fetch(CONFIG.GEMINI_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      systemInstruction: {
+        parts: [{ text: 'You are a brand analyst. Use web search to research thoroughly. Return only valid JSON.' }]
+      },
+      tools: [{ google_search: {} }],
+      generationConfig: {
+        temperature: 0.3,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 2048
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(`Brand analysis failed: ${response.status} - ${errorData.error || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  return parseJsonResponse(text);
+}
+
+// ============================================
+// PHASE 2: Get Recommendations (Gemini - Brands get URLs)
+// ============================================
+async function getRecommendations(brandProfile, brandName, domain, feedbackContext) {
+  const prompt = `You are a world-class brand collaboration curator—part trend forecaster, part matchmaker, part cultural observer.
+
+Your mission: Identify brands that would create EXCEPTIONAL, UNEXPECTED, and COMMERCIALLY VIABLE collaboration opportunities.
+
+=== THE BRAND SEEKING COLLABORATORS ===
+${JSON.stringify(brandProfile, null, 2)}
+
+=== YOUR COLLABORATION PHILOSOPHY ===
+
+Great brand collaborations share these traits:
+1. **Complementary, not competitive** - Products that enhance each other's use
+2. **Audience overlap with discovery** - Shared customer values, but introduces something new
+3. **Story synergy** - The "why" of the partnership is immediately obvious and compelling
+4. **Elevation** - Both brands benefit; neither feels like they're "trading down"
+5. **Bundle logic** - You can envision the actual product bundle or campaign
+
+=== RECOMMENDATION DIMENSIONS ===
+
+For each brand, classify using ONE of these collaboration angles:
+- **"same-moment"**: Products used in the same occasion/ritual
+- **"same-aesthetic"**: Brands that share visual/design language across different categories
+- **"same-values"**: Aligned on mission but different products
+- **"gift-pairing"**: Products that make sense as a gift set together
+- **"lifestyle-stack"**: Part of the same customer's broader lifestyle/identity
+- **"unexpected-delight"**: Non-obvious pairing that tells a story
+
+=== DIVERSITY REQUIREMENTS ===
+
+Your 12-15 brand recommendations MUST include:
+- At least 5 **emerging brands** (founded 2020+, under $10M revenue)
+- At least 4 **established brands** (well-known, proven track record)
+- At least 1 **non-obvious category** (digital product, subscription, experience)
+- Mix of price points that make sense for the input brand's customer
+- NO direct competitors to the input brand
+
+=== ANTI-PATTERNS TO AVOID ===
+
+DO NOT recommend:
+- **ANY products from ${brandName} or ${domain}** - We are finding EXTERNAL collaboration partners
+- Generic/obvious choices (e.g., any food brand gets "Whole Foods" or "Williams Sonoma")
+- Amazon private label or mass-market brands unless there's a compelling story
+- Brands with no distinct identity or commodity products
+- The same brands you'd recommend for any brand in this category
+- Made-up or fictional products - only recommend REAL products you can verify exist
+
+=== RESEARCH INSTRUCTIONS ===
+
+${feedbackContext}
+
+For EACH brand you recommend:
+1. Use web search to verify the brand exists and is active
+2. Find their actual website URL from search results
+3. Search for their social media handles
+4. Find 2-4 specific products from that brand
+
+CRITICAL - For brand URLs: Search for the brand and use their ACTUAL homepage URL from search results. Never guess URLs.
+
+=== OUTPUT FORMAT ===
+
+Return valid JSON only:
+
+{
+  "brands": [
+    {
+      "name": "Brand Name",
+      "url": "https://actualbrandwebsite.com",
+      "category": "same-moment|same-aesthetic|same-values|gift-pairing|lifestyle-stack|unexpected-delight",
+      "brandStage": "emerging|growing|established",
+      "reason": "2-3 sentences explaining the SPECIFIC synergy with ${brandName}. Reference concrete details.",
+      "bundleIdea": "One sentence describing a specific product bundle or campaign concept",
+      "social": {
+        "tiktok": "handle or null",
+        "instagram": "handle or null",
+        "facebook": "handle or null"
+      }
+    }
+  ],
+  "products": [
+    {
+      "productName": "EXACT Product Name as it appears on the brand's website",
+      "brandName": "Brand Name (MUST be different from ${brandName})",
+      "brandDomain": "brandname.com",
+      "whyThisProduct": "1 sentence on why this specific product pairs well",
+      "suggestedBundle": "What ${brandName} product would this pair with?",
+      "estimatedPrice": "$XX",
+      "social": {
+        "tiktok": "handle or null",
+        "instagram": "handle or null",
+        "facebook": "handle or null"
+      }
+    }
+  ]
+}
+
+Requirements:
+- 12-15 brands with diversity requirements met
+- 20-25 products total
+- At least 2 products per recommended brand
+- ZERO products from ${brandName} - this is critical
+- Specific, REAL product names that can be found via search
+- Brand URLs must be real homepage URLs from search results`;
+
+  const systemInstruction = `You are an expert brand collaboration curator. Your recommendations should be specific, creative, and commercially viable.
+
+CRITICAL INSTRUCTIONS:
+1. Always use Google Search to research brands and verify information
+2. Return ONLY valid JSON—no markdown, no explanations outside the JSON
+3. Brand URLs MUST come from search results—never construct or guess URLs
+4. Be specific in your reasoning—generic explanations indicate lazy thinking
+5. Do NOT recommend any products from ${brandName}`;
+
+  const response = await fetch(CONFIG.GEMINI_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      tools: [{ google_search: {} }],
+      generationConfig: {
+        temperature: 0.85,
+        topK: 50,
+        topP: 0.97,
+        maxOutputTokens: 6144
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(`Recommendations failed: ${response.status} - ${errorData.error || 'Unknown error'}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  
+  // Store grounding metadata for later use
+  const results = parseJsonResponse(text);
+  results._groundingMetadata = data.candidates?.[0]?.groundingMetadata;
+  
+  return results;
+}
+
+// ============================================
+// AUGMENT BRANDS WITH GROUNDING METADATA
+// ============================================
+function augmentWithGroundingMetadata(results, responseData) {
+  const groundingMetadata = results._groundingMetadata || responseData?.candidates?.[0]?.groundingMetadata;
+  const groundingChunks = groundingMetadata?.groundingChunks || [];
+  const groundedUrisByTitle = new Map();
+
+  for (const chunk of groundingChunks) {
+    const web = chunk.web;
+    if (web?.uri && web?.title && !web.uri.includes('google.com/')) {
+      groundedUrisByTitle.set(web.title.toLowerCase(), web.uri.trim());
+    }
+  }
+
+  // Augment brand URLs from grounding if available
+  if (groundedUrisByTitle.size > 0 && results.brands?.length) {
+    results.brands = results.brands.map((brand) => {
+      // If brand already has a valid-looking URL, keep it
+      if (brand.url && brand.url.startsWith('http') && !brand.url.includes('google.com')) {
+        return brand;
+      }
+      
+      const name = (brand.name || '').toLowerCase();
+      for (const [title, uri] of groundedUrisByTitle) {
+        if (title.includes(name) || name.includes(title.split(' ')[0])) {
+          try {
+            const parsed = new URL(uri);
+            if (parsed.pathname === '/' || parsed.pathname.length < 10) {
+              return { ...brand, url: uri };
+            }
+          } catch {
+            // Skip invalid URLs
+          }
+        }
+      }
+      return brand;
+    });
+  }
+
+  // Clean up internal metadata
+  delete results._groundingMetadata;
+  
+  return results;
+}
+
+// ============================================
+// FILTER SOURCE BRAND PRODUCTS
+// ============================================
+function filterSourceBrandProducts(products, sourceBrandName) {
+  const normalizedSourceBrand = sourceBrandName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  return products.filter(product => {
+    const productBrand = (product.brandName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const isSameBrand =
+      productBrand === normalizedSourceBrand ||
+      productBrand.includes(normalizedSourceBrand) ||
+      normalizedSourceBrand.includes(productBrand);
+
+    if (isSameBrand) {
+      console.log(`[Filter] Removed source brand product: ${product.productName} from ${product.brandName}`);
+      return false;
+    }
+    return true;
+  });
+}
+
+// ============================================
+// VERIFY PRODUCT URLs WITH SERPAPI
+// ============================================
+async function verifyProductUrlsWithSerpApi(products, sourceBrandName) {
+  console.log(`[Products] Verifying ${products.length} products with SerpAPI...`);
+
+  const verified = [];
+  const failed = [];
+
+  for (let i = 0; i < products.length; i += CONFIG.BATCH_SIZE) {
+    const batch = products.slice(i, i + CONFIG.BATCH_SIZE);
+
+    const batchResults = await Promise.all(
+      batch.map(product => searchProductWithSerpApi(product))
+    );
+
+    for (const result of batchResults) {
+      if (result.verified && result.url) {
+        verified.push(result);
+      } else {
+        failed.push(result);
+      }
+    }
+
+    if (i + CONFIG.BATCH_SIZE < products.length) {
+      await sleep(CONFIG.REQUEST_DELAY_MS);
+    }
+  }
+
+  console.log(`[Products] Verified: ${verified.length}, Failed: ${failed.length}`);
+
+  // If no products were verified, return the failed ones with constructed URLs as fallback
+  if (verified.length === 0 && failed.length > 0) {
+    console.log(`[Products] No verified products, using fallback URLs for ${failed.length} products`);
+    return failed.map(product => {
+      // Construct a fallback URL from brand domain if available
+      const domain = product.brandDomain || guessBrandDomain(product.brandName || '');
+      const productSlug = (product.productName || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      return {
+        ...product,
+        url: `https://${domain}/products/${productSlug}`,
+        verified: false,
+        fallback: true
+      };
+    });
+  }
+
+  return verified;
+}
+
+// ============================================
+// SERPAPI: Search for Individual Product
+// ============================================
+async function searchProductWithSerpApi(product) {
+  const { productName, brandName, brandDomain } = product;
+  
+  console.log(`[SerpAPI] Searching for product: "${productName}" by "${brandName}"`);
+
+  const cleanProductName = productName
+    .replace(/\s*\([^)]*\)\s*/g, ' ')
+    .replace(/\s*-\s*\d+\s*(oz|ml|g|lb|pack).*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const domain = brandDomain || guessBrandDomain(brandName);
+
+  const searchStrategies = [
+    {
+      query: `${cleanProductName} ${brandName}`,
+      engine: 'google_shopping',
+      type: 'shopping'
+    },
+    {
+      query: `"${cleanProductName}" site:${domain}`,
+      engine: 'google',
+      type: 'organic_exact_site'
+    },
+    {
+      query: `site:${domain}/products/ ${cleanProductName}`,
+      engine: 'google',
+      type: 'organic_products_path'
+    },
+    {
+      query: `${cleanProductName} ${brandName} buy`,
+      engine: 'google',
+      type: 'organic_buy_intent'
+    }
+  ];
+
+  for (const strategy of searchStrategies) {
+    try {
+      const searchResult = await serpApiSearch(strategy.query, strategy.engine);
+
+      let productUrl = null;
+      let imageUrl = null;
+      let price = null;
+      let source = null;
+
+      if (strategy.engine === 'google_shopping' && searchResult?.shopping_results?.length > 0) {
+        const match = findBestShoppingMatch(searchResult.shopping_results, productName, brandName);
+        if (match) {
+          productUrl = match.link;
+          imageUrl = match.thumbnail;
+          price = match.extracted_price || match.price;
+          source = match.source;
+        }
+      } else if (searchResult?.organic_results?.length > 0) {
+        const match = findBestOrganicProductMatch(searchResult.organic_results, productName, brandName);
+        if (match) {
+          productUrl = match.link;
+          imageUrl = match.thumbnail;
+        }
+      }
+
+      if (productUrl) {
+        // For shopping results, be more lenient - they're usually specific products
+        const isShoppingResult = strategy.engine === 'google_shopping';
+        const isSpecific = isSpecificProductUrl(productUrl, productName);
+        
+        if (isSpecific || isShoppingResult) {
+          console.log(`[Product] Found via ${strategy.type}: ${productName} -> ${productUrl} (isSpecific: ${isSpecific}, shopping: ${isShoppingResult})`);
+          return {
+            ...product,
+            url: productUrl,
+            imageUrl: imageUrl,
+            price: price,
+            source: source,
+            verified: true,
+            searchSource: strategy.type
+          };
+        } else {
+          console.log(`[Product] URL rejected as non-specific: ${productUrl}`);
+        }
+      }
+
+    } catch (err) {
+      console.warn(`[Product] Strategy ${strategy.type} failed for ${productName}:`, err.message);
+      continue;
+    }
+  }
+
+  console.warn(`[Product] No specific URL found for: ${productName} by ${brandName}`);
+  return { ...product, url: null, verified: false };
+}
+
+// ============================================
+// SERPAPI: Core Search Function (via server proxy to avoid CORS)
+// ============================================
+async function serpApiSearch(query, engine = 'google') {
+  console.log(`[SerpAPI] Query: "${query}" Engine: ${engine}`);
+  
+  const params = new URLSearchParams({
+    q: query,
+    engine: engine
+  });
+
+  const response = await fetch(`/api/serpapi?${params}`);
+
+  if (!response.ok) {
+    console.error(`[SerpAPI] Request failed: ${response.status}`);
+    throw new Error(`SerpAPI request failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+  console.log(`[SerpAPI] Results - Shopping: ${data.shopping_results?.length || 0}, Organic: ${data.organic_results?.length || 0}`);
+  return data;
+}
+
+// ============================================
+// SERPAPI: Find Best Shopping Match
+// ============================================
+function findBestShoppingMatch(shoppingResults, productName, brandName) {
+  const productWords = productName.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2);
+  const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const scored = shoppingResults.map(result => {
+    const title = (result.title || '').toLowerCase();
+    const source = (result.source || '').toLowerCase();
+    const link = (result.link || '').toLowerCase();
+
+    let score = 0;
+
+    if (title.includes(brandLower) || source.includes(brandLower)) {
+      score += 15;
+    }
+
+    const titleMatches = productWords.filter(w => title.includes(w));
+    score += titleMatches.length * 3;
+
+    if (title.includes(productName.toLowerCase().substring(0, 20))) {
+      score += 10;
+    }
+
+    if (link.includes(brandLower)) {
+      score += 8;
+    }
+
+    if (link.includes('amazon.com')) score -= 2;
+    if (link.includes('walmart.com')) score -= 2;
+    if (link.includes('ebay.com')) score -= 15;
+
+    if (result.link && !isSpecificProductUrl(result.link, productName)) {
+      score -= 25;
+    }
+
+    if (!result.link) {
+      score = -100;
+    }
+
+    return { ...result, matchScore: score };
+  });
+
+  scored.sort((a, b) => b.matchScore - a.matchScore);
+
+  const best = scored[0];
+  if (best && best.matchScore >= 8 && best.link && isSpecificProductUrl(best.link, productName)) {
+    return best;
+  }
+
+  return null;
+}
+
+// ============================================
+// SERPAPI: Find Best Organic Product Match
+// ============================================
+function findBestOrganicProductMatch(organicResults, productName, brandName) {
+  const productWords = productName.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2);
+  const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const scored = organicResults.map(result => {
+    const url = result.link || '';
+    const title = (result.title || '').toLowerCase();
+    const snippet = (result.snippet || '').toLowerCase();
+
+    let score = 0;
+
+    if (!isSpecificProductUrl(url, productName)) {
+      return { ...result, matchScore: -100 };
+    }
+
+    if (url.toLowerCase().includes(brandLower) || title.includes(brandLower)) {
+      score += 10;
+    }
+
+    const titleMatches = productWords.filter(w => title.includes(w));
+    score += titleMatches.length * 4;
+
+    const snippetMatches = productWords.filter(w => snippet.includes(w));
+    score += snippetMatches.length * 2;
+
+    return { ...result, matchScore: score };
+  });
+
+  scored.sort((a, b) => b.matchScore - a.matchScore);
+
+  const best = scored[0];
+  if (best && best.matchScore >= 5) {
+    return best;
+  }
+
+  return null;
+}
+
+// ============================================
+// URL VALIDATION: Is Specific Product URL
+// ============================================
+function isSpecificProductUrl(url, productName) {
+  if (!url || typeof url !== 'string') return false;
+
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.toLowerCase();
+    const fullUrl = url.toLowerCase();
+
+    const genericPatterns = [
+      /^\/products\/?$/,
+      /^\/shop\/?$/,
+      /^\/collections\/?$/,
+      /^\/collections\/[^/]+\/?$/,
+      /^\/store\/?$/,
+      /^\/catalog\/?$/,
+      /^\/all\/?$/,
+      /^\/browse\/?$/,
+      /^\/category\/[^/]+\/?$/,
+      /^\/?$/
+    ];
+
+    for (const pattern of genericPatterns) {
+      if (pattern.test(path)) {
+        return false;
+      }
+    }
+
+    const searchParams = parsed.searchParams;
+    const listingParams = ['q', 'query', 'search', 'filter', 'category', 'sort', 'page'];
+    for (const param of listingParams) {
+      if (searchParams.has(param)) {
+        return false;
+      }
+    }
+
+    if (fullUrl.includes('amazon.com/s?') ||
+        fullUrl.includes('amazon.com/s/') ||
+        fullUrl.includes('target.com/s?') ||
+        fullUrl.includes('walmart.com/search') ||
+        fullUrl.includes('google.com/search')) {
+      return false;
+    }
+
+    const productIndicators = [
+      /\/products\/[a-z0-9-]{3,}/i,
+      /\/product\/[a-z0-9-]{3,}/i,
+      /\/p\/[a-z0-9-]{3,}/i,
+      /\/dp\/[A-Z0-9]{10}/i,
+      /\/gp\/product\/[A-Z0-9]{10}/i,
+      /\/ip\/[^/]+\/\d+/,
+      /\/-\/A-\d{7,}/,
+      /\/item\/\d{5,}/,
+    ];
+
+    for (const pattern of productIndicators) {
+      if (pattern.test(path) || pattern.test(fullUrl)) {
+        return true;
+      }
+    }
+
+    if (/\/products\/[a-z0-9][a-z0-9-]{2,}[a-z0-9]$/i.test(path)) {
+      return true;
+    }
+
+    if (/\/collections\/[^/]+\/products\/[a-z0-9-]{3,}/i.test(path)) {
+      return true;
+    }
+
+    const pathSegments = path.split('/').filter(s => s.length > 0);
+    const lastSegment = pathSegments[pathSegments.length - 1] || '';
+
+    if (lastSegment.length > 5 && lastSegment.includes('-')) {
+      const productWords = productName.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .split(/\s+/)
+        .filter(w => w.length > 3);
+
+      const slugWords = lastSegment.split('-').filter(w => w.length > 2);
+      const matchingWords = productWords.filter(pw =>
+        slugWords.some(sw => sw.includes(pw) || pw.includes(sw))
+      );
+
+      if (matchingWords.length >= 2 || matchingWords.length >= productWords.length * 0.5) {
+        return true;
+      }
+    }
+
+    return false;
+
+  } catch {
+    return false;
+  }
+}
+
+// ============================================
+// PHASE 4: Fetch OG Images for Products
+// ============================================
+async function enrichProductsWithImages(products) {
+  const enriched = [];
+
+  for (let i = 0; i < products.length; i += CONFIG.BATCH_SIZE) {
+    const batch = products.slice(i, i + CONFIG.BATCH_SIZE);
+
+    const batchResults = await Promise.all(
+      batch.map(async (product) => {
+        if (product.imageUrl && isValidImageUrl(product.imageUrl)) {
+          return product;
+        }
+
+        if (product.url) {
+          try {
+            const ogImage = await fetchOgImageUrl(product.url);
+            if (ogImage) {
+              return { ...product, imageUrl: ogImage };
+            }
+          } catch (err) {
+            console.warn(`[Images] Failed to fetch OG image for: ${product.url}`);
+          }
+        }
+
+        return { ...product, imageUrl: null };
+      })
+    );
+
+    enriched.push(...batchResults);
+
+    if (i + CONFIG.BATCH_SIZE < products.length) {
+      await sleep(100);
+    }
+  }
+
+  return enriched;
+}
+
+// ============================================
+// Fetch OG Image from URL
+// ============================================
+async function fetchOgImageUrl(url) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), CONFIG.FETCH_TIMEOUT_MS);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9'
+      }
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+
+    let match = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
+                html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+
+    if (match?.[1]) return resolveUrl(match[1], url);
+
+    match = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i) ||
+            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+
+    if (match?.[1]) return resolveUrl(match[1], url);
+
+    return null;
+
+  } catch {
+    return null;
+  }
+}
+
+// ============================================
+// UTILITY: Extract Brand Name from Domain
+// ============================================
+function extractBrandName(domain) {
+  return domain
+    .replace(/^(https?:\/\/)?(www\.)?/, '')
+    .replace(/\.(com|co|io|shop|store|net|org|us|uk|ca).*$/, '')
+    .replace(/[^a-zA-Z0-9]/g, ' ')
+    .trim();
+}
+
+// ============================================
+// UTILITY: Guess Brand Domain
+// ============================================
+function guessBrandDomain(brandName) {
+  return brandName.toLowerCase().replace(/[^a-z0-9]/g, '') + '.com';
+}
+
+// ============================================
+// UTILITY: Resolve Relative URLs
+// ============================================
+function resolveUrl(imageUrl, baseUrl) {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  if (imageUrl.startsWith('//')) return 'https:' + imageUrl;
+
+  try {
+    const base = new URL(baseUrl);
+    if (imageUrl.startsWith('/')) {
+      return `${base.origin}${imageUrl}`;
+    }
+    return `${base.origin}/${imageUrl}`;
+  } catch {
+    return imageUrl;
+  }
+}
+
+// ============================================
+// UTILITY: Validate Image URL
+// ============================================
+function isValidImageUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const lowerUrl = url.toLowerCase();
+  if (!lowerUrl.startsWith('http')) return false;
+
+  const imageIndicators = [
+    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif',
+    'cdn.shopify.com', 'images.squarespace', 'cloudinary.com',
+    'imgix.net', 'cdn.sanity.io'
+  ];
+
+  return imageIndicators.some(indicator => lowerUrl.includes(indicator));
+}
+
+// ============================================
+// UTILITY: Sleep
+// ============================================
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ============================================
+// UTILITY: Parse JSON Response from AI
+// ============================================
+function parseJsonResponse(text) {
+  if (!text) throw new Error('No response from AI');
+
+  let jsonStr = text;
+
+  // Handle markdown code blocks
+  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonMatch) {
+    jsonStr = jsonMatch[1];
+  }
+
+  try {
+    return JSON.parse(jsonStr.trim());
+  } catch (parseErr) {
+    // Try to repair common JSON issues
+    try {
+      const cleaned = jsonStr
+        .replace(/,\s*}/g, '}')
+        .replace(/,\s*]/g, ']')
+        .replace(/[\x00-\x1F\x7F]/g, '') // Remove control characters
+        .trim();
+      return JSON.parse(cleaned);
+    } catch (repairErr) {
+      // Try jsonrepair library
+      try {
+        return JSON.parse(jsonrepair(jsonStr));
+      } catch {
+        // Fall through
+      }
+
+      const isTruncated = parseErr.message?.includes('Unexpected end') ||
+                          parseErr.message?.includes('Unterminated string');
+      throw new Error(isTruncated
+        ? 'Response was cut off. Please try again.'
+        : `Could not parse results: ${parseErr.message}`);
+    }
+  }
+}
+
+// ============================================
+// UTILITY: Ensure HTTPS prefix
+// ============================================
+function ensureHttps(item) {
+  if (!item) return item;
+  const url = (item.url || '').trim();
+  if (!url) return item;
+  const fullUrl = url.startsWith('http') ? url : 'https://' + url.replace(/^\/+/, '');
+  return { ...item, url: fullUrl };
+}
+
+/* --------------------------------------------------------------------------
+   Typing Placeholder Animation
+   -------------------------------------------------------------------------- */
+
+const TYPING_MESSAGES = ["Find your next collab", "Drop any brand URL", "Get instant recommendations"];
+const TYPING_SPEED = 80;
+const PAUSE_AFTER_TYPE = 2000;
+const FADE_OUT_DURATION = 400;
+function createTypingAnimation(placeholderEl, inputEl) {
+  console.log('[createTypingAnimation] Called with:', { placeholderEl, inputEl });
+  if (!placeholderEl || !inputEl) {
+    console.warn('[createTypingAnimation] Missing elements, returning undefined');
+    return;
+  }
+
+  let messageIndex = 0;
+  let charIndex = 0;
+  let timeoutId = null;
+
+  function updateDisplay(text) {
+    placeholderEl.textContent = text;
+  }
+
+  function fadeOutAndNext() {
+    placeholderEl.classList.add('fade-out');
+    timeoutId = setTimeout(() => {
+      placeholderEl.classList.remove('fade-out');
+      messageIndex = (messageIndex + 1) % TYPING_MESSAGES.length;
+      charIndex = 0;
+      updateDisplay('');
+      tick();
+    }, FADE_OUT_DURATION);
+  }
+
+  function tick() {
+    const message = TYPING_MESSAGES[messageIndex];
+    charIndex++;
+    updateDisplay(message.substring(0, charIndex));
+
+    if (charIndex === message.length) {
+      timeoutId = setTimeout(fadeOutAndNext, PAUSE_AFTER_TYPE);
+    } else {
+      timeoutId = setTimeout(tick, TYPING_SPEED);
+    }
+  }
+
+  function start() {
+    if (inputEl.value.trim() || document.activeElement === inputEl) return;
+    placeholderEl.classList.remove('hidden', 'fade-out');
+    inputEl.placeholder = '';
+    messageIndex = 0;
+    charIndex = 0;
+    if (timeoutId) clearTimeout(timeoutId);
+    updateDisplay('');
+    tick();
+  }
+
+  function stop() {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutId = null;
+    }
+    placeholderEl.classList.add('hidden');
+    placeholderEl.innerHTML = '';
+    inputEl.placeholder = inputEl.dataset.placeholderFocus || 'www.yourbrand.com';
+  }
+
+  inputEl.addEventListener('focus', () => {
+    stop();
+  });
+
+  inputEl.addEventListener('blur', () => {
+    if (!inputEl.value.trim()) {
+      start();
+    }
+  });
+
+  inputEl.addEventListener('input', () => {
+    if (inputEl.value.trim()) {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      placeholderEl.classList.add('hidden');
+    } else if (document.activeElement !== inputEl) {
+      start();
+    }
+  });
+
+  return { start, stop };
+}
+
+function initTypingPlaceholders() {
+  console.log('[initTypingPlaceholders] Starting with:', {
+    typingPlaceholder: elements.typingPlaceholder,
+    searchInput: elements.searchInput
+  });
+  const landing = createTypingAnimation(elements.typingPlaceholder, elements.searchInput);
+  console.log('[initTypingPlaceholders] landing animation:', landing);
+  const results = createTypingAnimation(elements.resultsTypingPlaceholder, elements.resultsSearchInput);
+  if (landing) {
+    console.log('[initTypingPlaceholders] Starting landing animation');
+    landing.start();
+  } else {
+    console.warn('[initTypingPlaceholders] No landing animation created!');
+  }
+  // Results placeholder starts hidden (results page not visible); will start on blur if empty
+}
+
+/* --------------------------------------------------------------------------
+   Search Handler
+   -------------------------------------------------------------------------- */
+
+async function performSearch(url, { fromUrlRestore = false } = {}) {
+  const domain = extractDomain(url);
+  hideSocialPopover();
+
+  // Restore from cache when refreshing or opening bookmarked URL
+  if (fromUrlRestore) {
+    const cached = getCachedResults(domain);
+    if (cached) {
+      currentSearchId = cached.searchId || generateId();
+      if (cached.type === 'results' && cached.brands && cached.products) {
+        const searchedBrand = cached.searchedBrand || buildFallbackSearchedBrand(domain);
+        currentResults = { brands: cached.brands, products: cached.products, searchedBrand };
+        renderResults(cached.brands, cached.products, searchedBrand);
+        elements.resultsSearchInput.value = domain;
+        if (elements.resultsTypingPlaceholder) {
+          elements.resultsTypingPlaceholder.classList.add('hidden');
+          elements.resultsTypingPlaceholder.innerHTML = '';
+        }
+        showSection('results');
+        return;
+      }
+      if (cached.type === 'empty') {
+        showSection('empty');
+        return;
+      }
+      if (cached.type === 'error') {
+        elements.errorMessage.textContent = cached.errorMessage || 'Please try again in a moment.';
+        showSection('error');
+        return;
+      }
+    }
+  }
+
+  // No cache hit - show loading and fetch from API
+  if (elements.loadingText) elements.loadingText.textContent = LOADING_MESSAGES[0];
+  elements.loadingUrl.textContent = domain;
+  if (elements.loadingFavicon) {
+    elements.loadingFavicon.src = getFaviconUrl(domain);
+    elements.loadingFavicon.alt = domain;
+    elements.loadingFavicon.onerror = function() {
+      this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ccc"><rect width="24" height="24" rx="4"/></svg>';
+    };
+  }
+  elements.floatingTiles.classList.add('whip-out');
+  showSection('loading');
+
+  addToSearchHistory(url);
+  currentSearchId = generateId();
+
+  // Yield so the loading UI paints before we start
+  await new Promise(resolve => requestAnimationFrame(resolve));
+
+  try {
+    const results = await discoverComplementaryBrands(url, {
+      onProgress: (msg) => {
+        if (elements.loadingText) elements.loadingText.textContent = msg;
+      }
+    });
+
+    if ((!results.brands || results.brands.length === 0) &&
+        (!results.products || results.products.length === 0)) {
+      setCachedResults(domain, { type: 'empty', searchId: currentSearchId });
+      if (!fromUrlRestore) updateUrlForSearch(domain);
+      showSection('empty');
+      return;
+    }
+
+    // Fetch Open Graph image for searched brand only (products already enriched in discoverComplementaryBrands)
+    let searchedBrand = results.searchedBrand ? { ...results.searchedBrand } : null;
+    if (searchedBrand?.url && !searchedBrand.imageUrl) {
+      try {
+        const searchedBrandOg = await fetchOpenGraphData(searchedBrand.url);
+        searchedBrand.imageUrl = searchedBrandOg?.imageUrl || null;
+        searchedBrand.faviconUrl = searchedBrandOg?.faviconUrl || null;
+      } catch (err) {
+        console.warn('[performSearch] Failed to fetch OG for searched brand');
+      }
+    }
+
+    const brands = results.brands || [];
+    
+    // Map products - preserve existing images, only add social links from matching brands
+    const products = (results.products || []).map((p) => {
+      const productData = { ...p };
+      
+      // Add social links from matching brand if product doesn't have them
+      if (!productData.social && p.brandName) {
+        const match = brands.find(b => b.name && String(b.name).toLowerCase() === String(p.brandName).toLowerCase());
+        if (match?.social) productData.social = match.social;
+      }
+      return productData;
+    });
+
+    currentResults = { brands: results.brands, products, searchedBrand };
+    setCachedResults(domain, {
+      type: 'results',
+      brands: results.brands,
+      products,
+      searchedBrand,
+      searchId: currentSearchId
+    });
+
+    renderResults(results.brands, products, searchedBrand);
+    elements.resultsSearchInput.value = domain;
+    if (elements.resultsTypingPlaceholder) {
+      elements.resultsTypingPlaceholder.classList.add('hidden');
+      elements.resultsTypingPlaceholder.innerHTML = '';
+    }
+
+    if (!fromUrlRestore) updateUrlForSearch(domain);
+    showSection('results');
+
+  } catch (error) {
+    console.error('Search failed:', error);
+    const errorMessage = error.message || 'Please try again in a moment.';
+    setCachedResults(domain, { type: 'error', errorMessage, searchId: currentSearchId });
+    elements.errorMessage.textContent = errorMessage;
+    if (!fromUrlRestore) updateUrlForSearch(domain);
+    showSection('error');
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Tile Tilt (3D cursor-follow on landing)
+   -------------------------------------------------------------------------- */
+
+const TILT_MAX_DEG = 2.5;
+
+function isTileTiltActive() {
+  return elements.appContainer &&
+    !elements.appContainer.classList.contains('showing-results') &&
+    !elements.floatingTiles.classList.contains('whip-out');
+}
+
+function resetTileTilt() {
+  if (!elements.floatingTiles) return;
+  elements.floatingTiles.querySelectorAll('.tile').forEach((tile) => {
+    tile.style.setProperty('--tilt-y', '0deg');
+  });
+}
+
+function updateTileTilt(clientX) {
+  if (!elements.floatingTiles) return;
+  if (!isTileTiltActive()) {
+    resetTileTilt();
+    return;
+  }
+  const tiles = elements.floatingTiles.querySelectorAll('.tile');
+  const w = window.innerWidth;
+  tiles.forEach((tile) => {
+    const rect = tile.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const deltaX = clientX - centerX;
+    const normalized = Math.max(-1, Math.min(1, deltaX / (w * 0.4)));
+    const tiltY = normalized * TILT_MAX_DEG;
+    tile.style.setProperty('--tilt-y', `${tiltY}deg`);
+  });
+}
+
+function initTileTilt() {
+  document.addEventListener('mousemove', (e) => updateTileTilt(e.clientX));
+  document.documentElement.addEventListener('mouseleave', resetTileTilt);
+}
+
+/* --------------------------------------------------------------------------
+   Event Listeners
+   -------------------------------------------------------------------------- */
+
+function initEventListeners() {
+  // Main search form
+  elements.searchForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const url = elements.searchInput.value.trim();
+    if (url && isValidUrl(url)) {
+      hideAllSearchHistoryDropdowns();
+      performSearch(url);
+    }
+  });
+
+  // Results search form
+  elements.resultsSearchForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const url = elements.resultsSearchInput.value.trim();
+    if (url && isValidUrl(url)) {
+      hideAllSearchHistoryDropdowns();
+      performSearch(url);
+    }
+  });
+
+  // Search input focus/blur for history dropdown (Landing Page)
+  elements.searchInput.addEventListener('focus', () => {
+    elements.searchInput.classList.add('focused');
+    showSearchHistory(elements.searchHistoryDropdown);
+  });
+
+  elements.searchInput.addEventListener('blur', (e) => {
+    elements.searchInput.classList.remove('focused');
+    setTimeout(() => {
+      if (!elements.searchHistoryDropdown.contains(document.activeElement)) {
+        hideSearchHistory(elements.searchHistoryDropdown);
+      }
+    }, 200);
+  });
+
+  // Search input focus/blur for history dropdown (Results Page)
+  elements.resultsSearchInput.addEventListener('focus', () => {
+    elements.resultsSearchInput.classList.add('focused');
+    showSearchHistory(elements.resultsSearchHistoryDropdown);
+  });
+
+  elements.resultsSearchInput.addEventListener('blur', (e) => {
+    elements.resultsSearchInput.classList.remove('focused');
+    setTimeout(() => {
+      if (elements.resultsSearchHistoryDropdown && !elements.resultsSearchHistoryDropdown.contains(document.activeElement)) {
+        hideSearchHistory(elements.resultsSearchHistoryDropdown);
+      }
+    }, 200);
+  });
+
+  // History item click (Landing Page) - ignore remove button
+  elements.historyList.addEventListener('click', (e) => {
+    if (e.target.closest('.history-item-remove-btn')) return;
+    const item = e.target.closest('.history-item');
+    if (item) {
+      const url = item.dataset.url;
+      elements.searchInput.value = url;
+      hideSearchHistory(elements.searchHistoryDropdown);
+      performSearch(url);
+    }
+  });
+
+  // History item click (Results Page) - ignore remove button
+  if (elements.resultsHistoryList) {
+    elements.resultsHistoryList.addEventListener('click', (e) => {
+      if (e.target.closest('.history-item-remove-btn')) return;
+      const item = e.target.closest('.history-item');
+      if (item) {
+        const url = item.dataset.url;
+        elements.resultsSearchInput.value = url;
+        hideSearchHistory(elements.resultsSearchHistoryDropdown);
+        performSearch(url);
+      }
+    });
+  }
+
+  // Remove individual history item (delegated - both lists)
+  document.addEventListener('click', (e) => {
+    const removeBtn = e.target.closest('.history-item-remove-btn');
+    if (!removeBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const domain = removeBtn.dataset.url;
+    if (domain) {
+      removeFromSearchHistory(domain);
+      renderSearchHistory();
+    }
+  });
+
+  // Result card clicks (handles both brand cards and product cards)
+  document.addEventListener('click', (e) => {
+    const brandCard = e.target.closest('.result-card');
+    const productCard = e.target.closest('.product-card');
+    const card = brandCard || productCard;
+    const menuBtn = e.target.closest('.card-menu-btn');
+    const socialLink = e.target.closest('.social-link');
+
+    // Handle menu button click
+    if (menuBtn) {
+      e.stopPropagation();
+      const parentCard = menuBtn.closest('.result-card') || menuBtn.closest('.product-card');
+      const socialData = JSON.parse(parentCard.dataset.social || '{}');
+      showSocialPopover(menuBtn, socialData);
+      return;
+    }
+
+    // Handle social link click (only available links are shown, no need to check disabled)
+    if (socialLink) {
+      hideSocialPopover();
+      return;
+    }
+
+    // Handle card click (open URL)
+    if (card && !e.target.closest('.card-menu-btn')) {
+      const url = card.dataset.url;
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+      return;
+    }
+
+    // Hide popover when clicking outside
+    if (!e.target.closest('.social-popover') && !e.target.closest('.card-menu-btn')) {
+      hideSocialPopover();
+    }
+  });
+
+  // Feedback buttons
+  elements.feedbackPositive.addEventListener('click', () => {
+    if (currentSearchId && currentResults) {
+      const allResults = [...(currentResults.brands || []), ...(currentResults.products || [])];
+      saveFeedback(currentSearchId, elements.resultsSearchInput.value, allResults, 'positive');
+
+      elements.feedbackPositive.classList.add('selected');
+      elements.feedbackNegative.classList.remove('selected');
+      elements.feedbackThanks.classList.remove('hidden');
+      elements.feedbackSection.style.pointerEvents = 'none';
+    }
+  });
+
+  elements.feedbackNegative.addEventListener('click', () => {
+    if (currentSearchId && currentResults) {
+      const allResults = [...(currentResults.brands || []), ...(currentResults.products || [])];
+      saveFeedback(currentSearchId, elements.resultsSearchInput.value, allResults, 'negative');
+
+      elements.feedbackNegative.classList.add('selected');
+      elements.feedbackPositive.classList.remove('selected');
+      elements.feedbackThanks.classList.remove('hidden');
+      elements.feedbackSection.style.pointerEvents = 'none';
+    }
+  });
+
+  // Header back and start over buttons
+  if (elements.headerBackBtn) {
+    elements.headerBackBtn.addEventListener('click', goToLanding);
+  }
+  if (elements.headerStartOverBtn) {
+    elements.headerStartOverBtn.addEventListener('click', goToLanding);
+  }
+
+  elements.tryAgainBtn.addEventListener('click', goToLanding);
+
+  elements.errorRetryBtn.addEventListener('click', () => {
+    const url = elements.searchInput.value || elements.resultsSearchInput.value;
+    if (url) {
+      performSearch(url);
+    } else {
+      goToLanding();
+    }
+  });
+
+  // Close popover on escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      hideSocialPopover();
+      hideAllSearchHistoryDropdowns();
+    }
+  });
+}
+
+/* --------------------------------------------------------------------------
+   Initialize App
+   -------------------------------------------------------------------------- */
+
+function init() {
+  console.log('[init] Starting...');
+  console.log('[init] elements.searchInput:', elements.searchInput);
+  console.log('[init] elements.typingPlaceholder:', elements.typingPlaceholder);
+  console.log('[init] elements.searchHistoryDropdown:', elements.searchHistoryDropdown);
+  
+  initEventListeners();
+  console.log('[init] Event listeners initialized');
+  
+  initTypingPlaceholders();
+  console.log('[init] Typing placeholders initialized');
+  
+  initTileTilt();
+  renderSearchHistory();
+  console.log('[init] Render complete');
+
+  // Restore search results from URL (refresh, direct link, or browser back/forward)
+  const initialSearch = getSearchFromUrl();
+  if (initialSearch && isValidUrl(initialSearch)) {
+    performSearch(initialSearch, { fromUrlRestore: true });
+  }
+
+  // Sync UI when user uses browser back/forward
+  window.addEventListener('popstate', () => {
+    const q = getSearchFromUrl();
+    if (q && isValidUrl(q)) {
+      performSearch(q, { fromUrlRestore: true });
+    } else {
+      showSection('landing');
+      elements.searchInput?.focus();
+    }
+  });
+}
+
+// Start the app
+console.log('=== APP.JS LOADED ===');
+try {
+  init();
+  console.log('=== APP INITIALIZED SUCCESSFULLY ===');
+} catch (error) {
+  console.error('=== APP INITIALIZATION ERROR ===', error);
+}
