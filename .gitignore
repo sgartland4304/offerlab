@@ -4,6 +4,9 @@
 .env.*.local
 .dev.vars
 
+# Local config with API keys (NEVER commit)
+config.js
+
 # Dependencies
 node_modules/
 
