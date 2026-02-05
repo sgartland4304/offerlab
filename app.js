@@ -946,7 +946,7 @@ Return your analysis as JSON:
 
 Be specific and insightful. This analysis will drive high-quality collaboration recommendations.`;
 
-  const response = await fetch(CONFIG.GEMINI_PROXY, {
+  const response = await fetchWithRetry(CONFIG.GEMINI_PROXY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1089,7 +1089,7 @@ CRITICAL INSTRUCTIONS:
 4. Be specific in your reasoning—generic explanations indicate lazy thinking
 5. Do NOT recommend any products from ${brandName}`;
 
-  const response = await fetch(CONFIG.GEMINI_PROXY, {
+  const response = await fetchWithRetry(CONFIG.GEMINI_PROXY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1696,6 +1696,39 @@ function isValidImageUrl(url) {
 // ============================================
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ============================================
+// UTILITY: Fetch with Retry (for rate limiting)
+// ============================================
+async function fetchWithRetry(url, options, maxRetries = 3) {
+  let lastError;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, options);
+      
+      // If rate limited (429), wait and retry
+      if (response.status === 429) {
+        const waitTime = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+        console.log(`[API] Rate limited, waiting ${waitTime/1000}s before retry ${attempt + 1}/${maxRetries}...`);
+        await sleep(waitTime);
+        continue;
+      }
+      
+      return response;
+    } catch (err) {
+      lastError = err;
+      console.warn(`[API] Request failed (attempt ${attempt + 1}):`, err.message);
+      
+      if (attempt < maxRetries - 1) {
+        const waitTime = Math.pow(2, attempt) * 1000;
+        await sleep(waitTime);
+      }
+    }
+  }
+  
+  throw lastError || new Error('Request failed after retries');
 }
 
 // ============================================

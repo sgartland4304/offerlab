@@ -3,7 +3,7 @@
 
 const CONFIG = {
   // Google AI (Gemini) API
-  GEMINI_API_KEY: 'AIzaSyAJXvnKIBvdEkU9IzSUFYnMRL0g9LpDdDk',
+  GEMINI_API_KEY: 'AIzaSyAUibokl_htknq8z21nqvSNd4sIF0BdcfQ',
   GEMINI_MODEL: 'gemini-2.0-flash',
   GEMINI_ENDPOINT: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
 
