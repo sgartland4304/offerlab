@@ -744,6 +744,7 @@ img {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow-x: hidden;
 }
 
 /* --------------------------------------------------------------------------
@@ -1856,7 +1857,6 @@ position: absolute;
 .error-section {
   flex: 1;
   display: flex;
-  align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: var(--spacing-xl);
@@ -1864,6 +1864,7 @@ position: absolute;
 
 .empty-content,
 .error-content {
+  padding-top: 50%;
   text-align: center;
   max-width: 400px;
 }
@@ -1902,7 +1903,7 @@ position: absolute;
 
 .try-again-btn {
   padding: var(--spacing-md) var(--spacing-xl);
-  background: var(--brand-secondary-spice);
+  background: var(--content-primary);
   color: var(--white);
   font-size: var(--font-size-base);
   font-weight: 500;
@@ -2012,7 +2013,10 @@ position: absolute;
   .floating-tiles .tile-8 { bottom: 2%; right: -3%; }
 
   .results-section {
-    padding: var(--spacing-lg);
+    padding-top: 0;
+    padding-left: var(--spacing-lg);
+    padding-right: var(--spacing-lg);
+    padding-bottom: var(--spacing-lg);
   }
 
   /* Mobile results: search box in sticky footer at bottom of viewport */
