@@ -28,7 +28,8 @@ app.get('/api/opengraph', async (req, res) => {
   }
 
   const fullUrl = url.trim().startsWith('http') ? url.trim() : `https://${url.trim()}`;
-  const apiUrl = `https://opengraph.io/api/1.1/site/${encodeURIComponent(fullUrl)}?app_id=${apiKey}`;
+  // Use proxy to bypass bot protection (full_render causes timeouts on some sites)
+  const apiUrl = `https://opengraph.io/api/1.1/site/${encodeURIComponent(fullUrl)}?app_id=${apiKey}&use_proxy=true`;
 
   try {
     console.log(`[OpenGraph Proxy] Fetching: ${fullUrl}`);

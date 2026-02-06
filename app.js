@@ -26,6 +26,8 @@ const CONFIG = {
 // State
 let currentSearchId = null;
 let currentResults = null;
+let searchAbortController = null;
+let isSearchCancelled = false;
 
 // DOM Elements
 const elements = {
@@ -35,6 +37,8 @@ const elements = {
   siteHeaderResultsNav: document.getElementById('siteHeaderResultsNav'),
   headerBackBtn: document.getElementById('headerBackBtn'),
   headerStartOverBtn: document.getElementById('headerStartOverBtn'),
+  stopSearchButton: document.getElementById('stopSearchButton'),
+  resultsSearchButton: document.getElementById('resultsSearchButton'),
 
   // Sections
   appContainer: document.querySelector('.app-container'),
@@ -63,6 +67,11 @@ const elements = {
   searchedBrandCardContainer: document.getElementById('searchedBrandCardContainer'),
   brandsGrid: document.getElementById('brandsGrid'),
   productsGrid: document.getElementById('productsGrid'),
+  productsGroup: document.getElementById('productsGroup'),
+  productsLoading: document.getElementById('productsLoading'),
+  productsLoadingText: document.getElementById('productsLoadingText'),
+  productsSkeleton: document.getElementById('productsSkeleton'),
+  productsOutOfCredits: document.getElementById('productsOutOfCredits'),
 
   // Loading
   loadingText: document.getElementById('loadingText'),
@@ -116,6 +125,15 @@ function goToLanding() {
   showSection('landing');
   if (elements.searchInput) elements.searchInput.value = '';
   if (elements.searchInput) elements.searchInput.focus();
+}
+
+function cancelSearch() {
+  console.log('[cancelSearch] User cancelled search');
+  isSearchCancelled = true;
+  if (searchAbortController) {
+    searchAbortController.abort();
+  }
+  goToLanding();
 }
 
 /* --------------------------------------------------------------------------
@@ -326,6 +344,14 @@ function showSection(sectionName) {
   elements.emptySection.classList.add('hidden');
   elements.errorSection.classList.add('hidden');
 
+  // Hide all header states by default
+  if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.add('hidden');
+  if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.add('hidden');
+  if (elements.siteHeader) {
+    elements.siteHeader.classList.remove('header-nav--results');
+    elements.siteHeader.classList.remove('header-nav--loading');
+  }
+
   // Show requested section
   switch (sectionName) {
     case 'landing':
@@ -333,22 +359,19 @@ function showSection(sectionName) {
       document.querySelector('.app-container').classList.remove('showing-results');
       document.body.classList.remove('showing-results');
       elements.floatingTiles.classList.remove('whip-out');
-      if (elements.siteHeader) {
-        elements.siteHeader.classList.remove('header-nav--results');
-      }
       if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.remove('hidden');
-      if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.add('hidden');
       break;
     case 'loading':
       elements.loadingSection.classList.remove('hidden');
       document.querySelector('.app-container').classList.add('showing-results');
       document.body.classList.add('showing-results');
       resetTileTilt();
+      // Show results header in loading state (back/start over hidden, stop button visible)
       if (elements.siteHeader) {
-        elements.siteHeader.classList.remove('header-nav--results');
+        elements.siteHeader.classList.add('header-nav--results');
+        elements.siteHeader.classList.add('header-nav--loading');
       }
-      if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.remove('hidden');
-      if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.add('hidden');
+      if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.remove('hidden');
       break;
     case 'results':
       elements.resultsSection.classList.remove('hidden');
@@ -357,8 +380,9 @@ function showSection(sectionName) {
       resetTileTilt();
       if (elements.siteHeader) {
         elements.siteHeader.classList.add('header-nav--results');
+        // Remove loading state to fade in back/start over buttons
+        elements.siteHeader.classList.remove('header-nav--loading');
       }
-      if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.add('hidden');
       if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.remove('hidden');
       break;
     case 'empty':
@@ -369,7 +393,6 @@ function showSection(sectionName) {
       if (elements.siteHeader) {
         elements.siteHeader.classList.add('header-nav--results');
       }
-      if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.add('hidden');
       if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.remove('hidden');
       break;
     case 'error':
@@ -380,7 +403,6 @@ function showSection(sectionName) {
       if (elements.siteHeader) {
         elements.siteHeader.classList.add('header-nav--results');
       }
-      if (elements.siteHeaderLogo) elements.siteHeaderLogo.classList.add('hidden');
       if (elements.siteHeaderResultsNav) elements.siteHeaderResultsNav.classList.remove('hidden');
       break;
   }
@@ -628,19 +650,12 @@ function createProductCard(product, index) {
   return card;
 }
 
-function renderResults(brands, products, searchedBrand = null) {
-  // Log products data to verify images are present
-  console.log(`[Render] Rendering ${products.length} products`);
-  const withImages = products.filter(p => p.imageUrl);
-  const withoutImages = products.filter(p => !p.imageUrl);
-  console.log(`[Render] Products with images: ${withImages.length}, without: ${withoutImages.length}`);
-  if (withoutImages.length > 0) {
-    console.log(`[Render] Products missing images:`, withoutImages.map(p => p.productName));
-  }
+// Render brands only (called first when brands are ready)
+function renderBrandsOnly(brands, searchedBrand = null) {
+  console.log(`[Render] Rendering ${brands.length} brands`);
   
-  // Clear existing
+  // Clear existing brands
   elements.brandsGrid.innerHTML = '';
-  elements.productsGrid.innerHTML = '';
   if (elements.searchedBrandCardContainer) {
     elements.searchedBrandCardContainer.innerHTML = '';
   }
@@ -657,11 +672,148 @@ function renderResults(brands, products, searchedBrand = null) {
     elements.brandsGrid.appendChild(card);
   });
 
-  // Render products
+  // Show products loading state
+  showProductsLoading();
+}
+
+// Show products loading spinner
+function showProductsLoading() {
+  if (elements.productsLoading) {
+    elements.productsLoading.classList.remove('hidden');
+  }
+  if (elements.productsSkeleton) {
+    elements.productsSkeleton.classList.add('hidden');
+  }
+  if (elements.productsGrid) {
+    elements.productsGrid.classList.add('hidden');
+    elements.productsGrid.innerHTML = '';
+  }
+  if (elements.productsOutOfCredits) {
+    elements.productsOutOfCredits.classList.add('hidden');
+  }
+}
+
+// Show out of credits state
+function showProductsOutOfCredits() {
+  if (elements.productsLoading) {
+    elements.productsLoading.classList.add('hidden');
+  }
+  if (elements.productsSkeleton) {
+    elements.productsSkeleton.classList.add('hidden');
+  }
+  if (elements.productsGrid) {
+    elements.productsGrid.classList.add('hidden');
+  }
+  if (elements.productsOutOfCredits) {
+    elements.productsOutOfCredits.classList.remove('hidden');
+  }
+}
+
+// Transition to skeleton UI (called when products are almost ready)
+function showProductsSkeleton() {
+  if (elements.productsLoading) {
+    elements.productsLoading.classList.add('hidden');
+  }
+  if (elements.productsSkeleton) {
+    elements.productsSkeleton.classList.remove('hidden');
+  }
+}
+
+// Update products loading text
+function updateProductsLoadingText(message) {
+  if (elements.productsLoadingText) {
+    elements.productsLoadingText.textContent = message;
+  }
+}
+
+// Render products with skeleton-to-content transition
+function renderProducts(products, brands = []) {
+  console.log(`[Render] Rendering ${products.length} products`);
+  const withImages = products.filter(p => p.imageUrl);
+  const withoutImages = products.filter(p => !p.imageUrl);
+  console.log(`[Render] Products with images: ${withImages.length}, without: ${withoutImages.length}`);
+  if (withoutImages.length > 0) {
+    console.log(`[Render] Products missing images:`, withoutImages.map(p => p.productName));
+  }
+
+  // Step 1: Hide spinner, show skeleton UI briefly
+  if (elements.productsLoading) {
+    elements.productsLoading.classList.add('hidden');
+  }
+  
+  // Show skeleton UI for a brief moment before revealing products
+  if (elements.productsSkeleton) {
+    elements.productsSkeleton.classList.remove('hidden');
+  }
+
+  // Step 2: Prepare products grid (hidden)
+  elements.productsGrid.innerHTML = '';
+  
+  products.forEach((product, index) => {
+    const productData = { ...product };
+    
+    // Add social links from matching brand if product doesn't have them
+    if (!productData.social && product.brandName) {
+      const match = brands.find(b => b.name && String(b.name).toLowerCase() === String(product.brandName).toLowerCase());
+      if (match?.social) productData.social = match.social;
+    }
+    
+    const card = createProductCard(productData, index);
+    elements.productsGrid.appendChild(card);
+  });
+
+  // Step 3: After brief skeleton display, fade in actual products
+  setTimeout(() => {
+    // Hide skeleton
+    if (elements.productsSkeleton) {
+      elements.productsSkeleton.classList.add('hidden');
+    }
+    
+    // Show products grid with fade-in animation
+    elements.productsGrid.classList.remove('hidden');
+    elements.productsGrid.classList.add('fade-in');
+    
+    // Remove animation class after it completes
+    setTimeout(() => {
+      elements.productsGrid.classList.remove('fade-in');
+    }, 500);
+  }, 400); // Show skeleton for 400ms before revealing products
+
+  // Reset feedback state
+  elements.feedbackPositive.classList.remove('selected');
+  elements.feedbackNegative.classList.remove('selected');
+  elements.feedbackThanks.classList.add('hidden');
+  elements.feedbackSection.style.pointerEvents = 'auto';
+}
+
+// Legacy function for cached results (renders everything at once)
+function renderResults(brands, products, searchedBrand = null) {
+  console.log(`[renderResults] Rendering ${brands.length} brands and ${products.length} products from cache`);
+  
+  // Render brands
+  renderBrandsOnly(brands, searchedBrand);
+  
+  // Immediately render products (no loading state for cached results)
+  if (elements.productsLoading) {
+    elements.productsLoading.classList.add('hidden');
+  }
+  if (elements.productsSkeleton) {
+    elements.productsSkeleton.classList.add('hidden');
+  }
+  if (elements.productsOutOfCredits) {
+    elements.productsOutOfCredits.classList.add('hidden');
+  }
+  
+  elements.productsGrid.innerHTML = '';
+  if (products.length === 0) {
+    console.log('[renderResults] No products in cache - showing loading state for fresh fetch');
+  }
   products.forEach((product, index) => {
     const card = createProductCard(product, index);
     elements.productsGrid.appendChild(card);
   });
+  elements.productsGrid.classList.remove('hidden');
+  console.log(`[renderResults] Products grid now visible with ${products.length} cards`);
 
   // Reset feedback state
   elements.feedbackPositive.classList.remove('selected');
@@ -794,9 +946,9 @@ const LOADING_MESSAGES = [
 ];
 
 // ============================================
-// MAIN FUNCTION
+// MAIN FUNCTION (Decoupled: Brands first, Products in parallel)
 // ============================================
-async function discoverComplementaryBrands(url, { onProgress } = {}) {
+async function discoverComplementaryBrands(url, { onProgress, onBrandsReady, onProductsProgress } = {}) {
   const domain = extractDomain(url);
   const brandName = extractBrandName(domain);
   const feedbackContext = buildFeedbackContext();
@@ -804,6 +956,12 @@ async function discoverComplementaryBrands(url, { onProgress } = {}) {
   const updateProgress = (index) => {
     if (onProgress && typeof onProgress === 'function') {
       onProgress(LOADING_MESSAGES[index] ?? LOADING_MESSAGES[0]);
+    }
+  };
+
+  const updateProductsProgress = (message) => {
+    if (onProductsProgress && typeof onProductsProgress === 'function') {
+      onProductsProgress(message);
     }
   };
 
@@ -833,53 +991,70 @@ async function discoverComplementaryBrands(url, { onProgress } = {}) {
     // Sanitize brand URLs
     const brands = (augmentedResults.brands || []).map(ensureHttps);
 
-    // ========================================
-    // PHASE 3: Verify Product URLs with SerpAPI
-    // ========================================
-    updateProgress(3); // "Verifying product recommendations..."
-
-    // Filter out source brand products first
-    const rawProducts = augmentedResults.products || [];
-    console.log(`[Discovery] Raw products from AI: ${rawProducts.length}`);
-    
-    const filteredProducts = filterSourceBrandProducts(rawProducts, brandName);
-    console.log(`[Discovery] After filtering source brand: ${filteredProducts.length}`);
-
-    // Verify and enrich product URLs with SerpAPI
-    const verifiedProducts = await verifyProductUrlsWithSerpApi(filteredProducts, brandName);
-    console.log(`[Discovery] After SerpAPI verification: ${verifiedProducts.length}`);
-
-    // ========================================
-    // PHASE 4: Fetch OG Images for Products
-    // ========================================
-    updateProgress(4); // "Fetching product images..."
-
-    const productsWithImages = await enrichProductsWithImages(verifiedProducts);
-
-    // ========================================
-    // Finalize Results
-    // ========================================
-    updateProgress(5); // "Finalizing results..."
-
     // Build searchedBrand from analysis
     let searchedBrand = ensureHttps(resolvedBrandProfile);
 
-    // Fetch OG image for searched brand if missing
+    // Fetch OG image for searched brand if missing (do this quickly)
     if (!searchedBrand.imageUrl && searchedBrand.url) {
       searchedBrand.imageUrl = await fetchOgImageUrl(searchedBrand.url);
     }
 
+    const searchedBrandData = {
+      name: searchedBrand.name,
+      url: searchedBrand.url,
+      imageUrl: searchedBrand.imageUrl,
+      description: searchedBrand.description,
+      brandDNA: searchedBrand.brandDNA,
+      targetCustomer: searchedBrand.targetCustomer
+    };
+
+    // ========================================
+    // BRANDS ARE READY - Notify callback immediately
+    // ========================================
+    console.log(`[Discovery] Brands ready: ${brands.length} brands found`);
+    
+    if (onBrandsReady && typeof onBrandsReady === 'function') {
+      onBrandsReady({ searchedBrand: searchedBrandData, brands });
+    }
+
+    // ========================================
+    // PHASE 3: Fetch Top Products from Recommended Brands (OPTIMIZED)
+    // Instead of verifying AI-suggested products (expensive: 4 searches per product),
+    // we fetch top products directly from each brand (cheap: 1 search per brand)
+    // ========================================
+    console.log('[Discovery] PHASE 3: Starting product fetch from recommended brands...');
+    updateProductsProgress('Finding top products from recommended brands...');
+
+    // Fetch products from the recommended brands (1 SERP call per brand)
+    console.log(`[Discovery] Calling fetchProductsFromBrands for ${brands.length} brands...`);
+    const productResult = await fetchProductsFromBrands(brands, brandName);
+    console.log('[Discovery] fetchProductsFromBrands returned:', productResult);
+    
+    // Check if we ran out of SERP API credits
+    if (productResult && productResult.outOfCredits) {
+      console.log(`[Discovery] SERP API out of credits - returning with flag`);
+      return {
+        searchedBrand: searchedBrandData,
+        brands,
+        products: [],
+        serpApiOutOfCredits: true
+      };
+    }
+    
+    const verifiedProducts = Array.isArray(productResult) ? productResult : [];
+    console.log(`[Discovery] Products from brands: ${verifiedProducts.length}`);
+
+    // ========================================
+    // PHASE 4: Fetch OG Images for Products
+    // ========================================
+    updateProductsProgress('Fetching product images...');
+
+    const productsWithImages = await enrichProductsWithImages(verifiedProducts);
+
     console.log(`[Discovery] Complete. Found ${brands.length} brands, ${productsWithImages.length} products`);
 
     return {
-      searchedBrand: {
-        name: searchedBrand.name,
-        url: searchedBrand.url,
-        imageUrl: searchedBrand.imageUrl,
-        description: searchedBrand.description,
-        brandDNA: searchedBrand.brandDNA,
-        targetCustomer: searchedBrand.targetCustomer
-      },
+      searchedBrand: searchedBrandData,
       brands,
       products: productsWithImages
     };
@@ -1189,6 +1364,142 @@ function filterSourceBrandProducts(products, sourceBrandName) {
 }
 
 // ============================================
+// FETCH PRODUCTS FROM RECOMMENDED BRANDS (OPTIMIZED)
+// Instead of 4 searches per product, we do 1 search per brand
+// This reduces SERP API usage by ~87%
+// ============================================
+async function fetchProductsFromBrands(brands, sourceBrandName) {
+  console.log(`[Products] Fetching top products from ${brands.length} brands (optimized: 1 search per brand)`);
+  
+  const allProducts = [];
+  let outOfCredits = false;
+  
+  // Limit to top 5 brands to further optimize
+  const brandsToSearch = brands.slice(0, 5);
+  console.log(`[Products] Will search these brands:`, brandsToSearch.map(b => b.name));
+  
+  for (const brand of brandsToSearch) {
+    if (outOfCredits) break;
+    
+    try {
+      const brandProducts = await fetchBrandTopProducts(brand);
+      
+      if (brandProducts && brandProducts.outOfCredits) {
+        outOfCredits = true;
+        break;
+      }
+      
+      if (Array.isArray(brandProducts)) {
+        allProducts.push(...brandProducts);
+      }
+    } catch (err) {
+      if (err.message === 'SERP_API_OUT_OF_CREDITS') {
+        outOfCredits = true;
+        break;
+      }
+      console.warn(`[Products] Failed to fetch products for ${brand.name}:`, err.message);
+    }
+    
+    // Small delay between brand searches
+    await sleep(100);
+  }
+  
+  if (outOfCredits) {
+    return { outOfCredits: true, products: [] };
+  }
+  
+  console.log(`[Products] Total products from all brands: ${allProducts.length}`);
+  return allProducts;
+}
+
+// ============================================
+// FETCH TOP PRODUCTS FOR A SINGLE BRAND
+// Uses Google Shopping to get real, purchasable products
+// ============================================
+async function fetchBrandTopProducts(brand) {
+  const brandName = brand.name;
+  const brandDomain = extractDomain(brand.url || '');
+  
+  console.log(`[Products] Searching Google Shopping for: ${brandName} (domain: ${brandDomain})`);
+  
+  try {
+    // Single search: brand name on Google Shopping
+    const searchResult = await serpApiSearch(`${brandName}`, 'google_shopping');
+    
+    if (!searchResult || !searchResult.shopping_results || searchResult.shopping_results.length === 0) {
+      console.log(`[Products] No shopping results for ${brandName}`);
+      return [];
+    }
+    
+    console.log(`[Products] Got ${searchResult.shopping_results.length} raw shopping results for ${brandName}`);
+    
+    // Filter and score results to find products actually from this brand
+    const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const domainLower = brandDomain.toLowerCase().replace(/[^a-z0-9.]/g, '');
+    
+    // Also create word-based matching for multi-word brands
+    const brandWords = brandName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    
+    console.log(`[Products] Brand matching: normalized="${brandLower}", domain="${domainLower}", words=${JSON.stringify(brandWords)}`);
+    
+    const brandProducts = searchResult.shopping_results
+      .filter(result => {
+        const title = (result.title || '').toLowerCase();
+        const source = (result.source || '').toLowerCase();
+        // Google Shopping uses product_link, not link
+        const productLink = (result.product_link || result.link || '').toLowerCase();
+        
+        // Normalize title and source the same way we normalize brand name (remove spaces/special chars)
+        const titleNormalized = title.replace(/[^a-z0-9]/g, '');
+        const sourceNormalized = source.replace(/[^a-z0-9]/g, '');
+        
+        // Must be from this brand (in title, source, or link)
+        // Check both normalized and raw versions for flexibility
+        const isBrandMatch = 
+          title.includes(brandLower) ||
+          titleNormalized.includes(brandLower) ||
+          source.includes(brandLower) ||
+          sourceNormalized.includes(brandLower) ||
+          productLink.includes(brandLower) ||
+          (domainLower && productLink.includes(domainLower)) ||
+          // Also match if ALL significant brand words appear in title/source
+          (brandWords.length > 1 && brandWords.every(w => title.includes(w) || source.includes(w)));
+        
+        const hasRequiredFields = result.thumbnail && (result.product_link || result.link);
+        
+        // Log first few results for debugging
+        if (searchResult.shopping_results.indexOf(result) < 3) {
+          console.log(`[Products] Result check for "${brandName}": title="${title.substring(0, 50)}", source="${source}", match=${isBrandMatch}, hasFields=${hasRequiredFields}`);
+        }
+        
+        return isBrandMatch && hasRequiredFields;
+      })
+      .slice(0, 4) // Take top 4 products per brand
+      .map(result => ({
+        productName: result.title || 'Unknown Product',
+        brandName: brandName,
+        brandDomain: brandDomain,
+        url: result.product_link || result.link,
+        imageUrl: result.thumbnail,
+        price: result.extracted_price || result.price,
+        source: result.source,
+        verified: true,
+        searchSource: 'google_shopping_brand'
+      }));
+    
+    console.log(`[Products] Found ${brandProducts.length} products for ${brandName} (filtered from ${searchResult.shopping_results.length})`);
+    return brandProducts;
+    
+  } catch (err) {
+    if (err.message === 'SERP_API_OUT_OF_CREDITS') {
+      throw err;
+    }
+    console.warn(`[Products] Error fetching products for ${brandName}:`, err.message);
+    return [];
+  }
+}
+
+// ============================================
 // VERIFY PRODUCT URLs WITH SERPAPI
 // ============================================
 async function verifyProductUrlsWithSerpApi(products, sourceBrandName) {
@@ -1196,20 +1507,30 @@ async function verifyProductUrlsWithSerpApi(products, sourceBrandName) {
 
   const verified = [];
   const failed = [];
+  let outOfCredits = false;
 
   for (let i = 0; i < products.length; i += CONFIG.BATCH_SIZE) {
     const batch = products.slice(i, i + CONFIG.BATCH_SIZE);
 
-    const batchResults = await Promise.all(
-      batch.map(product => searchProductWithSerpApi(product))
-    );
+    try {
+      const batchResults = await Promise.all(
+        batch.map(product => searchProductWithSerpApi(product))
+      );
 
-    for (const result of batchResults) {
-      if (result.verified && result.url) {
-        verified.push(result);
-      } else {
-        failed.push(result);
+      for (const result of batchResults) {
+        if (result.verified && result.url) {
+          verified.push(result);
+        } else {
+          failed.push(result);
+        }
       }
+    } catch (err) {
+      if (err.message === 'SERP_API_OUT_OF_CREDITS') {
+        outOfCredits = true;
+        console.error(`[Products] SERP API out of credits!`);
+        break;
+      }
+      throw err;
     }
 
     if (i + CONFIG.BATCH_SIZE < products.length) {
@@ -1217,28 +1538,50 @@ async function verifyProductUrlsWithSerpApi(products, sourceBrandName) {
     }
   }
 
-  console.log(`[Products] Verified: ${verified.length}, Failed: ${failed.length}`);
+  console.log(`[Products] Verified: ${verified.length}, Failed: ${failed.length}, OutOfCredits: ${outOfCredits}`);
 
-  // If no products were verified, return the failed ones with constructed URLs as fallback
-  if (verified.length === 0 && failed.length > 0) {
-    console.log(`[Products] No verified products, using fallback URLs for ${failed.length} products`);
-    return failed.map(product => {
-      // Construct a fallback URL from brand domain if available
-      const domain = product.brandDomain || guessBrandDomain(product.brandName || '');
-      const productSlug = (product.productName || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
-      return {
-        ...product,
-        url: `https://${domain}/products/${productSlug}`,
-        verified: false,
-        fallback: true
-      };
-    });
+  // Return special marker if out of credits
+  if (outOfCredits) {
+    return { outOfCredits: true, products: [] };
+  }
+
+  // Don't use fallback URLs - they're usually broken
+  // Better to show fewer products than broken ones
+  if (verified.length === 0) {
+    console.log(`[Products] No verified products found - returning empty array`);
   }
 
   return verified;
+}
+
+// ============================================
+// VALIDATE URL: Check if URL returns 200 OK
+// ============================================
+async function validateUrlExists(url) {
+  if (!url) return false;
+  
+  try {
+    // Use our proxy to avoid CORS issues
+    const checkUrl = `${CONFIG.OPENGRAPH_PROXY}?url=${encodeURIComponent(url)}`;
+    const response = await fetch(checkUrl, { 
+      method: 'GET',
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (!response.ok) {
+      console.log(`[Validate] URL check failed for ${url}: ${response.status}`);
+      return false;
+    }
+    
+    const data = await response.json();
+    // If we got an image or favicon, the page exists
+    const exists = !!(data.imageUrl || data.faviconUrl);
+    console.log(`[Validate] URL ${url} exists: ${exists}`);
+    return exists;
+  } catch (err) {
+    console.warn(`[Validate] URL check error for ${url}:`, err.message);
+    return false;
+  }
 }
 
 // ============================================
@@ -1256,73 +1599,75 @@ async function searchProductWithSerpApi(product) {
     .trim();
 
   const domain = brandDomain || guessBrandDomain(brandName);
+  const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+  // Prioritize brand's own website over retailers
   const searchStrategies = [
-    {
-      query: `${cleanProductName} ${brandName}`,
-      engine: 'google_shopping',
-      type: 'shopping'
-    },
+    // First: Search the brand's own site
     {
       query: `"${cleanProductName}" site:${domain}`,
       engine: 'google',
-      type: 'organic_exact_site'
+      type: 'organic_exact_site',
+      preferBrandSite: true
     },
     {
       query: `site:${domain}/products/ ${cleanProductName}`,
       engine: 'google',
-      type: 'organic_products_path'
+      type: 'organic_products_path',
+      preferBrandSite: true
     },
+    // Then: Google Shopping (but filter for brand's site when possible)
+    {
+      query: `${cleanProductName} ${brandName}`,
+      engine: 'google_shopping',
+      type: 'shopping',
+      preferBrandSite: false
+    },
+    // Fallback: General search with buy intent
     {
       query: `${cleanProductName} ${brandName} buy`,
       engine: 'google',
-      type: 'organic_buy_intent'
+      type: 'organic_buy_intent',
+      preferBrandSite: false
     }
   ];
+
+  // Collect all candidate URLs across strategies
+  const candidates = [];
 
   for (const strategy of searchStrategies) {
     try {
       const searchResult = await serpApiSearch(strategy.query, strategy.engine);
 
-      let productUrl = null;
-      let imageUrl = null;
-      let price = null;
-      let source = null;
-
       if (strategy.engine === 'google_shopping' && searchResult?.shopping_results?.length > 0) {
-        const match = findBestShoppingMatch(searchResult.shopping_results, productName, brandName);
-        if (match) {
-          productUrl = match.link;
-          imageUrl = match.thumbnail;
-          price = match.extracted_price || match.price;
-          source = match.source;
+        // Get multiple matches from shopping results
+        const matches = findShoppingMatches(searchResult.shopping_results, productName, brandName, 3);
+        for (const match of matches) {
+          if (match.link) {
+            candidates.push({
+              url: match.link,
+              imageUrl: match.thumbnail,
+              price: match.extracted_price || match.price,
+              source: match.source,
+              searchSource: strategy.type,
+              isBrandSite: match.link.toLowerCase().includes(brandLower),
+              score: match.matchScore || 0
+            });
+          }
         }
       } else if (searchResult?.organic_results?.length > 0) {
-        const match = findBestOrganicProductMatch(searchResult.organic_results, productName, brandName);
-        if (match) {
-          productUrl = match.link;
-          imageUrl = match.thumbnail;
-        }
-      }
-
-      if (productUrl) {
-        // For shopping results, be more lenient - they're usually specific products
-        const isShoppingResult = strategy.engine === 'google_shopping';
-        const isSpecific = isSpecificProductUrl(productUrl, productName);
-        
-        if (isSpecific || isShoppingResult) {
-          console.log(`[Product] Found via ${strategy.type}: ${productName} -> ${productUrl} (isSpecific: ${isSpecific}, shopping: ${isShoppingResult})`);
-          return {
-            ...product,
-            url: productUrl,
-            imageUrl: imageUrl,
-            price: price,
-            source: source,
-            verified: true,
-            searchSource: strategy.type
-          };
-        } else {
-          console.log(`[Product] URL rejected as non-specific: ${productUrl}`);
+        // Get multiple matches from organic results
+        const matches = findOrganicMatches(searchResult.organic_results, productName, brandName, 3);
+        for (const match of matches) {
+          if (match.link) {
+            candidates.push({
+              url: match.link,
+              imageUrl: match.thumbnail,
+              searchSource: strategy.type,
+              isBrandSite: match.link.toLowerCase().includes(brandLower),
+              score: match.matchScore || 0
+            });
+          }
         }
       }
 
@@ -1332,8 +1677,153 @@ async function searchProductWithSerpApi(product) {
     }
   }
 
-  console.warn(`[Product] No specific URL found for: ${productName} by ${brandName}`);
+  if (candidates.length === 0) {
+    console.warn(`[Product] No candidates found for: ${productName} by ${brandName}`);
+    return { ...product, url: null, verified: false };
+  }
+
+  // Sort candidates: prefer brand's own site, then by score
+  candidates.sort((a, b) => {
+    // Brand site gets priority
+    if (a.isBrandSite && !b.isBrandSite) return -1;
+    if (!a.isBrandSite && b.isBrandSite) return 1;
+    // Then by score
+    return b.score - a.score;
+  });
+
+  console.log(`[Product] ${candidates.length} candidates for "${productName}":`, 
+    candidates.slice(0, 3).map(c => ({ url: c.url.substring(0, 60), brand: c.isBrandSite, score: c.score })));
+
+  // Validate candidates until we find one that works
+  for (const candidate of candidates.slice(0, 5)) { // Check top 5 candidates max
+    const isSpecific = isSpecificProductUrl(candidate.url, productName);
+    
+    if (!isSpecific) {
+      console.log(`[Product] Skipping non-specific URL: ${candidate.url}`);
+      continue;
+    }
+
+    // Validate the URL actually exists
+    const urlExists = await validateUrlExists(candidate.url);
+    
+    if (urlExists) {
+      console.log(`[Product] Verified: ${productName} -> ${candidate.url}`);
+      return {
+        ...product,
+        url: candidate.url,
+        imageUrl: candidate.imageUrl,
+        price: candidate.price,
+        source: candidate.source,
+        verified: true,
+        searchSource: candidate.searchSource
+      };
+    } else {
+      console.log(`[Product] URL failed validation: ${candidate.url}`);
+    }
+  }
+
+  console.warn(`[Product] No valid URL found for: ${productName} by ${brandName}`);
   return { ...product, url: null, verified: false };
+}
+
+// ============================================
+// SERPAPI: Find Multiple Shopping Matches
+// ============================================
+function findShoppingMatches(shoppingResults, productName, brandName, limit = 3) {
+  const productWords = productName.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2);
+  const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const scored = shoppingResults.map(result => {
+    const title = (result.title || '').toLowerCase();
+    const source = (result.source || '').toLowerCase();
+    const link = (result.link || '').toLowerCase();
+
+    let score = 0;
+
+    // Brand match
+    if (title.includes(brandLower) || source.includes(brandLower)) {
+      score += 15;
+    }
+
+    // Product word matches
+    const titleMatches = productWords.filter(w => title.includes(w));
+    score += titleMatches.length * 3;
+
+    // Exact product name match
+    if (title.includes(productName.toLowerCase().substring(0, 20))) {
+      score += 10;
+    }
+
+    // Brand in URL (strong signal for brand's own site)
+    if (link.includes(brandLower)) {
+      score += 20; // Increased from 8
+    }
+
+    // Penalize major retailers (we want brand's own site)
+    if (link.includes('amazon.com')) score -= 5;
+    if (link.includes('walmart.com')) score -= 5;
+    if (link.includes('target.com')) score -= 5;
+    if (link.includes('ebay.com')) score -= 20;
+
+    // Penalize non-specific URLs
+    if (result.link && !isSpecificProductUrl(result.link, productName)) {
+      score -= 25;
+    }
+
+    if (!result.link) {
+      score = -100;
+    }
+
+    return { ...result, matchScore: score };
+  });
+
+  scored.sort((a, b) => b.matchScore - a.matchScore);
+  
+  return scored.filter(r => r.matchScore >= 5 && r.link).slice(0, limit);
+}
+
+// ============================================
+// SERPAPI: Find Multiple Organic Matches
+// ============================================
+function findOrganicMatches(organicResults, productName, brandName, limit = 3) {
+  const productWords = productName.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 2);
+  const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  const scored = organicResults.map(result => {
+    const url = result.link || '';
+    const title = (result.title || '').toLowerCase();
+    const snippet = (result.snippet || '').toLowerCase();
+
+    let score = 0;
+
+    if (!isSpecificProductUrl(url, productName)) {
+      return { ...result, matchScore: -100 };
+    }
+
+    // Brand in URL or title
+    if (url.toLowerCase().includes(brandLower) || title.includes(brandLower)) {
+      score += 15;
+    }
+
+    // Product word matches
+    const titleMatches = productWords.filter(w => title.includes(w));
+    score += titleMatches.length * 4;
+
+    const snippetMatches = productWords.filter(w => snippet.includes(w));
+    score += snippetMatches.length * 2;
+
+    return { ...result, matchScore: score };
+  });
+
+  scored.sort((a, b) => b.matchScore - a.matchScore);
+
+  return scored.filter(r => r.matchScore >= 5).slice(0, limit);
 }
 
 // ============================================
@@ -1355,110 +1845,17 @@ async function serpApiSearch(query, engine = 'google') {
   }
 
   const data = await response.json();
+  
+  // Check for out of credits error
+  if (data.error && data.error.includes('run out of searches')) {
+    console.error(`[SerpAPI] Out of credits!`);
+    throw new Error('SERP_API_OUT_OF_CREDITS');
+  }
+  
   console.log(`[SerpAPI] Results - Shopping: ${data.shopping_results?.length || 0}, Organic: ${data.organic_results?.length || 0}`);
   return data;
 }
 
-// ============================================
-// SERPAPI: Find Best Shopping Match
-// ============================================
-function findBestShoppingMatch(shoppingResults, productName, brandName) {
-  const productWords = productName.toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .split(/\s+/)
-    .filter(w => w.length > 2);
-  const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  const scored = shoppingResults.map(result => {
-    const title = (result.title || '').toLowerCase();
-    const source = (result.source || '').toLowerCase();
-    const link = (result.link || '').toLowerCase();
-
-    let score = 0;
-
-    if (title.includes(brandLower) || source.includes(brandLower)) {
-      score += 15;
-    }
-
-    const titleMatches = productWords.filter(w => title.includes(w));
-    score += titleMatches.length * 3;
-
-    if (title.includes(productName.toLowerCase().substring(0, 20))) {
-      score += 10;
-    }
-
-    if (link.includes(brandLower)) {
-      score += 8;
-    }
-
-    if (link.includes('amazon.com')) score -= 2;
-    if (link.includes('walmart.com')) score -= 2;
-    if (link.includes('ebay.com')) score -= 15;
-
-    if (result.link && !isSpecificProductUrl(result.link, productName)) {
-      score -= 25;
-    }
-
-    if (!result.link) {
-      score = -100;
-    }
-
-    return { ...result, matchScore: score };
-  });
-
-  scored.sort((a, b) => b.matchScore - a.matchScore);
-
-  const best = scored[0];
-  if (best && best.matchScore >= 8 && best.link && isSpecificProductUrl(best.link, productName)) {
-    return best;
-  }
-
-  return null;
-}
-
-// ============================================
-// SERPAPI: Find Best Organic Product Match
-// ============================================
-function findBestOrganicProductMatch(organicResults, productName, brandName) {
-  const productWords = productName.toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .split(/\s+/)
-    .filter(w => w.length > 2);
-  const brandLower = brandName.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-  const scored = organicResults.map(result => {
-    const url = result.link || '';
-    const title = (result.title || '').toLowerCase();
-    const snippet = (result.snippet || '').toLowerCase();
-
-    let score = 0;
-
-    if (!isSpecificProductUrl(url, productName)) {
-      return { ...result, matchScore: -100 };
-    }
-
-    if (url.toLowerCase().includes(brandLower) || title.includes(brandLower)) {
-      score += 10;
-    }
-
-    const titleMatches = productWords.filter(w => title.includes(w));
-    score += titleMatches.length * 4;
-
-    const snippetMatches = productWords.filter(w => snippet.includes(w));
-    score += snippetMatches.length * 2;
-
-    return { ...result, matchScore: score };
-  });
-
-  scored.sort((a, b) => b.matchScore - a.matchScore);
-
-  const best = scored[0];
-  if (best && best.matchScore >= 5) {
-    return best;
-  }
-
-  return null;
-}
 
 // ============================================
 // URL VALIDATION: Is Specific Product URL
@@ -1568,14 +1965,16 @@ async function enrichProductsWithImages(products) {
 
     const batchResults = await Promise.all(
       batch.map(async (product) => {
+        // Already has a valid image from SerpAPI
         if (product.imageUrl && isValidImageUrl(product.imageUrl)) {
           return product;
         }
 
+        // Try to fetch OG image from product URL
         if (product.url) {
           try {
             const ogImage = await fetchOgImageUrl(product.url);
-            if (ogImage) {
+            if (ogImage && isValidImageUrl(ogImage)) {
               return { ...product, imageUrl: ogImage };
             }
           } catch (err) {
@@ -1594,45 +1993,45 @@ async function enrichProductsWithImages(products) {
     }
   }
 
-  return enriched;
+  // Filter out products without valid images - better to show fewer than broken
+  const withImages = enriched.filter(p => p.imageUrl && isValidImageUrl(p.imageUrl));
+  const withoutImages = enriched.filter(p => !p.imageUrl || !isValidImageUrl(p.imageUrl));
+  
+  console.log(`[Images] Products with valid images: ${withImages.length}, without: ${withoutImages.length}`);
+  
+  if (withoutImages.length > 0) {
+    console.log(`[Images] Filtered out products without images:`, withoutImages.map(p => p.productName));
+  }
+
+  return withImages;
 }
 
 // ============================================
-// Fetch OG Image from URL
+// Fetch OG Image from URL (uses OpenGraph proxy to avoid CORS)
+// Falls back to high-res favicon if OG image not available
 // ============================================
 async function fetchOgImageUrl(url) {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), CONFIG.FETCH_TIMEOUT_MS);
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9'
-      }
-    });
-
-    clearTimeout(timeout);
-
-    if (!response.ok) return null;
-
-    const html = await response.text();
-
-    let match = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-                html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
-
-    if (match?.[1]) return resolveUrl(match[1], url);
-
-    match = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i) ||
-            html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
-
-    if (match?.[1]) return resolveUrl(match[1], url);
-
+    // Use the OpenGraph proxy which properly fetches OG data server-side
+    const ogData = await fetchOpenGraphData(url);
+    if (ogData?.imageUrl) {
+      console.log(`[fetchOgImageUrl] Got OG image for ${url}: ${ogData.imageUrl}`);
+      return ogData.imageUrl;
+    }
+    
+    // Fallback: Use Google's high-res favicon API (256px)
+    // This works even for sites with bot protection
+    const domain = extractDomain(url);
+    if (domain) {
+      const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=256`;
+      console.log(`[fetchOgImageUrl] No OG image, using high-res favicon fallback: ${faviconUrl}`);
+      return faviconUrl;
+    }
+    
+    console.warn(`[fetchOgImageUrl] No image found for ${url}`);
     return null;
-
-  } catch {
+  } catch (err) {
+    console.warn(`[fetchOgImageUrl] Failed for ${url}:`, err.message);
     return null;
   }
 }
@@ -1683,9 +2082,16 @@ function isValidImageUrl(url) {
   if (!lowerUrl.startsWith('http')) return false;
 
   const imageIndicators = [
-    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif',
+    // Common image extensions
+    '.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif', '.svg',
+    // E-commerce CDNs
     'cdn.shopify.com', 'images.squarespace', 'cloudinary.com',
-    'imgix.net', 'cdn.sanity.io'
+    'imgix.net', 'cdn.sanity.io', 'images.ctfassets.net',
+    // Google image CDNs (used by Google Shopping thumbnails)
+    'gstatic.com/shopping', 'encrypted-tbn', 'googleusercontent.com',
+    // Other common image hosts
+    'amazonaws.com', 'cloudfront.net', 'akamaized.net',
+    'fastly.net', 'imgix.', 'scene7.com'
   ];
 
   return imageIndicators.some(indicator => lowerUrl.includes(indicator));
@@ -1903,10 +2309,13 @@ async function performSearch(url, { fromUrlRestore = false } = {}) {
 
   // Restore from cache when refreshing or opening bookmarked URL
   if (fromUrlRestore) {
+    console.log(`[performSearch] Checking cache for: ${domain}`);
     const cached = getCachedResults(domain);
+    console.log(`[performSearch] Cache result:`, cached ? `Found (type: ${cached.type}, brands: ${cached.brands?.length}, products: ${cached.products?.length})` : 'Not found');
     if (cached) {
       currentSearchId = cached.searchId || generateId();
       if (cached.type === 'results' && cached.brands && cached.products) {
+        console.log(`[performSearch] Loading from cache: ${cached.brands.length} brands, ${cached.products.length} products`);
         const searchedBrand = cached.searchedBrand || buildFallbackSearchedBrand(domain);
         currentResults = { brands: cached.brands, products: cached.products, searchedBrand };
         renderResults(cached.brands, cached.products, searchedBrand);
@@ -1931,6 +2340,7 @@ async function performSearch(url, { fromUrlRestore = false } = {}) {
   }
 
   // No cache hit - show loading and fetch from API
+  console.log(`[performSearch] No cache hit - starting fresh search for: ${domain}`);
   if (elements.loadingText) elements.loadingText.textContent = LOADING_MESSAGES[0];
   elements.loadingUrl.textContent = domain;
   if (elements.loadingFavicon) {
@@ -1940,8 +2350,24 @@ async function performSearch(url, { fromUrlRestore = false } = {}) {
       this.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ccc"><rect width="24" height="24" rx="4"/></svg>';
     };
   }
+  
+  // Reset cancellation state
+  isSearchCancelled = false;
+  searchAbortController = new AbortController();
+  
   elements.floatingTiles.classList.add('whip-out');
   showSection('loading');
+  
+  // Set the results header search input to show current search (after header is visible)
+  if (elements.resultsSearchInput) {
+    elements.resultsSearchInput.value = domain;
+    // Dispatch input event to trigger any listeners that hide the typing placeholder
+    elements.resultsSearchInput.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  if (elements.resultsTypingPlaceholder) {
+    elements.resultsTypingPlaceholder.classList.add('hidden');
+    elements.resultsTypingPlaceholder.innerHTML = '';
+  }
 
   addToSearchHistory(url);
   currentSearchId = generateId();
@@ -1949,67 +2375,112 @@ async function performSearch(url, { fromUrlRestore = false } = {}) {
   // Yield so the loading UI paints before we start
   await new Promise(resolve => requestAnimationFrame(resolve));
 
+  // Track state for the decoupled flow
+  let brandsData = null;
+  let brandsShown = false;
+
   try {
     const results = await discoverComplementaryBrands(url, {
       onProgress: (msg) => {
+        if (isSearchCancelled) return;
         if (elements.loadingText) elements.loadingText.textContent = msg;
+      },
+      // Called as soon as brands are ready - show results page immediately
+      onBrandsReady: ({ searchedBrand, brands }) => {
+        if (isSearchCancelled) return;
+        console.log(`[performSearch] onBrandsReady callback: ${brands.length} brands received`);
+        brandsData = { searchedBrand, brands };
+        
+        if (brands.length === 0) {
+          // No brands found, wait for products before deciding
+          return;
+        }
+        
+        // Render brands and show results page immediately
+        renderBrandsOnly(brands, searchedBrand);
+        elements.resultsSearchInput.value = domain;
+        if (elements.resultsTypingPlaceholder) {
+          elements.resultsTypingPlaceholder.classList.add('hidden');
+          elements.resultsTypingPlaceholder.innerHTML = '';
+        }
+        
+        if (!fromUrlRestore) updateUrlForSearch(domain);
+        showSection('results');
+        brandsShown = true;
+      },
+      // Called to update products loading text
+      onProductsProgress: (msg) => {
+        if (isSearchCancelled) return;
+        updateProductsLoadingText(msg);
+        // Transition to skeleton when fetching images (almost done)
+        if (msg.includes('Fetching product images')) {
+          showProductsSkeleton();
+        }
       }
     });
 
+    // If search was cancelled, don't process results
+    if (isSearchCancelled) {
+      console.log('[performSearch] Search was cancelled, ignoring results');
+      return;
+    }
+
+    // Handle empty results (no brands AND no products)
     if ((!results.brands || results.brands.length === 0) &&
-        (!results.products || results.products.length === 0)) {
+        (!results.products || results.products.length === 0) &&
+        !results.serpApiOutOfCredits) {
       setCachedResults(domain, { type: 'empty', searchId: currentSearchId });
       if (!fromUrlRestore) updateUrlForSearch(domain);
       showSection('empty');
       return;
     }
 
-    // Fetch Open Graph image for searched brand only (products already enriched in discoverComplementaryBrands)
-    let searchedBrand = results.searchedBrand ? { ...results.searchedBrand } : null;
-    if (searchedBrand?.url && !searchedBrand.imageUrl) {
-      try {
-        const searchedBrandOg = await fetchOpenGraphData(searchedBrand.url);
-        searchedBrand.imageUrl = searchedBrandOg?.imageUrl || null;
-        searchedBrand.faviconUrl = searchedBrandOg?.faviconUrl || null;
-      } catch (err) {
-        console.warn('[performSearch] Failed to fetch OG for searched brand');
+    const searchedBrand = results.searchedBrand;
+    const brands = results.brands || [];
+    const products = results.products || [];
+    
+    console.log(`[performSearch] Results received: ${brands.length} brands, ${products.length} products`);
+    console.log(`[performSearch] serpApiOutOfCredits: ${results.serpApiOutOfCredits}`);
+
+    // If brands weren't shown yet (edge case), show them now
+    if (!brandsShown && brands.length > 0) {
+      renderBrandsOnly(brands, searchedBrand);
+      elements.resultsSearchInput.value = domain;
+      if (elements.resultsTypingPlaceholder) {
+        elements.resultsTypingPlaceholder.classList.add('hidden');
+        elements.resultsTypingPlaceholder.innerHTML = '';
       }
+      if (!fromUrlRestore) updateUrlForSearch(domain);
+      showSection('results');
     }
 
-    const brands = results.brands || [];
-    
-    // Map products - preserve existing images, only add social links from matching brands
-    const products = (results.products || []).map((p) => {
-      const productData = { ...p };
-      
-      // Add social links from matching brand if product doesn't have them
-      if (!productData.social && p.brandName) {
-        const match = brands.find(b => b.name && String(b.name).toLowerCase() === String(p.brandName).toLowerCase());
-        if (match?.social) productData.social = match.social;
-      }
-      return productData;
-    });
+    // Check if SERP API ran out of credits
+    if (results.serpApiOutOfCredits) {
+      console.log('[performSearch] SERP API out of credits - showing empty state');
+      showProductsOutOfCredits();
+    } else {
+      // Render products with fade-in animation
+      console.log(`[performSearch] Calling renderProducts with ${products.length} products`);
+      renderProducts(products, brands);
+    }
 
-    currentResults = { brands: results.brands, products, searchedBrand };
+    // Update state and cache
+    currentResults = { brands, products, searchedBrand };
     setCachedResults(domain, {
       type: 'results',
-      brands: results.brands,
+      brands,
       products,
       searchedBrand,
+      serpApiOutOfCredits: results.serpApiOutOfCredits || false,
       searchId: currentSearchId
     });
 
-    renderResults(results.brands, products, searchedBrand);
-    elements.resultsSearchInput.value = domain;
-    if (elements.resultsTypingPlaceholder) {
-      elements.resultsTypingPlaceholder.classList.add('hidden');
-      elements.resultsTypingPlaceholder.innerHTML = '';
-    }
-
-    if (!fromUrlRestore) updateUrlForSearch(domain);
-    showSection('results');
-
   } catch (error) {
+    // If cancelled, don't show error
+    if (isSearchCancelled) {
+      console.log('[performSearch] Search was cancelled');
+      return;
+    }
     console.error('Search failed:', error);
     const errorMessage = error.message || 'Please try again in a moment.';
     setCachedResults(domain, { type: 'error', errorMessage, searchId: currentSearchId });
@@ -2224,6 +2695,11 @@ function initEventListeners() {
   }
   if (elements.headerStartOverBtn) {
     elements.headerStartOverBtn.addEventListener('click', goToLanding);
+  }
+  
+  // Stop search button (during loading)
+  if (elements.stopSearchButton) {
+    elements.stopSearchButton.addEventListener('click', cancelSearch);
   }
 
   elements.tryAgainBtn.addEventListener('click', goToLanding);

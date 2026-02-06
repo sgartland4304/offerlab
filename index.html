@@ -42,9 +42,9 @@
     <a href="/" class="header-nav-logo" aria-label="OfferLab home" id="siteHeaderLogo">
       <img src="assets/logo/offerlab-lockup-wrapped.svg" alt="OfferLab" width="129" height="44">
     </a>
-    <!-- Results: back button + search + start over -->
+    <!-- Results/Loading: back button + search + start over (back & start over hidden during loading) -->
     <div class="header-nav-results-container hidden" id="siteHeaderResultsNav">
-      <div class="flex justify-start">
+      <div class="flex justify-start header-nav-back-wrapper">
         <button type="button" class="icon-button icon-button--medium" id="headerBackBtn" aria-label="Back to search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="m10 6-6 6 6 6m-5-6h15"/>
@@ -67,9 +67,19 @@
                   data-placeholder-focus="www.yourbrand.com"
                 >
                 <div class="submit-button-wrapper">
+                  <!-- Normal search button (visible when not loading) -->
                   <button type="submit" class="search-button" id="resultsSearchButton">
                     <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <path d="M12 5v15M6 10l6-6 6 6"/>
+                    </svg>
+                  </button>
+                  <!-- Stop button (visible during loading) -->
+                  <button type="button" class="search-button search-button--stop" id="stopSearchButton" aria-label="Stop search">
+                    <svg class="spinner-ring" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="50 14"/>
+                    </svg>
+                    <svg class="stop-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M14.708 5H9.292c-.633 0-1.142 0-1.555.034-.426.034-.799.108-1.144.284-.55.28-.995.726-1.275 1.275-.176.345-.25.718-.284 1.144C5 8.15 5 8.659 5 9.292v5.416c0 .633 0 1.142.034 1.555.034.425.108.799.284 1.144.28.55.726.995 1.275 1.275.345.176.718.25 1.144.284.413.034.922.034 1.555.034h5.416c.633 0 1.142 0 1.555-.034.425-.035.799-.108 1.144-.284.55-.28.995-.726 1.275-1.274.176-.346.25-.72.284-1.145.034-.413.034-.923.034-1.555V9.292c0-.633 0-1.142-.034-1.555-.035-.426-.108-.799-.284-1.144a2.916 2.916 0 0 0-1.274-1.275c-.346-.176-.72-.25-1.145-.284C15.85 5 15.34 5 14.708 5Z"/>
                     </svg>
                   </button>
                 </div>
@@ -213,12 +223,43 @@
         </div>
 
         <!-- Products Section -->
-        <div class="results-group">
+        <div class="results-group" id="productsGroup">
           <h2 class="results-group-title">
             Recommended products
           </h2>
-          <div class="results-grid" id="productsGrid">
+          <!-- Products Loading State -->
+          <div class="products-loading" id="productsLoading">
+            <div class="products-loading-spinner">
+              <div class="loader"></div>
+              <span class="products-loading-text" id="productsLoadingText">Finding top products from recommended brands...</span>
+            </div>
+          </div>
+          <!-- Products Skeleton UI -->
+          <div class="products-skeleton hidden" id="productsSkeleton">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+          <!-- Actual Products Grid -->
+          <div class="results-grid hidden" id="productsGrid">
             <!-- Populated by JS -->
+          </div>
+          <!-- Out of Credits State -->
+          <div class="products-out-of-credits hidden" id="productsOutOfCredits">
+            <div class="coins-animation">
+              <div class="coin coin-1">🪙</div>
+              <div class="coin coin-2">🪙</div>
+              <div class="coin coin-3">🪙</div>
+            </div>
+            <h3 class="out-of-credits-title">Uh oh, we're broke! 💸</h3>
+            <p class="out-of-credits-message">
+              Our product search piggy bank is empty. The brands above are still fire though!
+            </p>
+            <a href="https://serpapi.com/dashboard" target="_blank" rel="noopener noreferrer" class="refill-credits-btn">
+              Refill the piggy bank →
+            </a>
           </div>
         </div>
 

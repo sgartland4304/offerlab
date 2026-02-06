@@ -818,7 +818,7 @@ img {
   outline-style: solid;
   outline-color: rgba(255, 255, 255, .2);
   box-shadow: 0 4px 24px #0000001f, 0 0 0 4.5px #0000000a;
-  background: rgba(255, 255, 255, .9);
+  background: rgba(255, 255, 255, .95);
   border-radius: 32px;
   transition: min-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
   z-index: 20;
@@ -990,6 +990,85 @@ img {
   color: var(--content-background-elevated);
   transition: background var(--transition-fast), transform var(--transition-fast);
   box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(255, 237, 132, 0.8) 0px 4px 24px 0px;
+}
+
+/* Stop button variant (during search) */
+.search-button--stop {
+  position: relative;
+  background-color: var(--content-primary);
+  box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(52,46,38, 0.15) 0px 4px 24px 0px;
+  cursor: pointer;
+}
+
+.search-button--stop:hover {
+  transform: scale(1.05);
+}
+
+/* Hide the SVG spinner ring, use pseudo-element instead for gradient */
+.search-button--stop .spinner-ring {
+  display: none;
+}
+
+/* Gradient spinner using conic-gradient */
+.search-button--stop::before {
+  content: '';
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 1) 270deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), var(--content-primary) calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), var(--content-primary) calc(100% - 2.5px));
+  animation: spin-ring 1s linear infinite;
+}
+
+.search-button--stop .stop-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--white);
+  z-index: 1;
+}
+
+@keyframes spin-ring {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Header loading state - hide back and start over buttons with fade */
+.header-nav-back-wrapper,
+.header-nav-start-over {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.header-nav--loading .header-nav-back-wrapper,
+.header-nav--loading .header-nav-start-over {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Stop button is hidden by default, only shown during loading */
+.search-button--stop {
+  display: none;
+}
+
+/* During loading, show stop button and hide search button */
+.header-nav--loading .search-button:not(.search-button--stop) {
+  display: none;
+}
+
+.header-nav--loading .search-button--stop {
+  display: flex;
+}
+
+/* Make search input read-only appearance during loading */
+.header-nav--loading .search-input {
+  pointer-events: none;
 }
 
 @media (min-width: 768px) {
@@ -2169,9 +2248,6 @@ position: absolute;
   opacity: 1;
 }
 
-.product-info {
-}
-
 .product-brand-row {
   display: flex;
   align-items: center;
@@ -2263,3 +2339,225 @@ position: absolute;
 .result-card:nth-child(8) { animation-delay: 0.4s; }
 .result-card:nth-child(9) { animation-delay: 0.45s; }
 .result-card:nth-child(10) { animation-delay: 0.5s; }
+
+/* --------------------------------------------------------------------------
+   Products Loading States
+   -------------------------------------------------------------------------- */
+
+/* Spinner + Shimmer Text Loading State */
+.products-loading {
+  display: flex;
+  padding: var(--spacing-2xl) var(--spacing-lg);
+}
+
+.products-loading.hidden {
+  display: none;
+}
+
+.products-loading-spinner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+/* Four-dot rotating loader */
+.products-loading-spinner .loader {
+  width: 16px;
+  aspect-ratio: 1;
+  --_g: no-repeat radial-gradient(farthest-side, var(--content-primary) 94%, #0000);
+  background:
+    var(--_g) 0 0,
+    var(--_g) 100% 0,
+    var(--_g) 100% 100%,
+    var(--_g) 0 100%;
+  background-size: 40% 40%;
+  animation: loader-spin .5s infinite;
+}
+
+@keyframes loader-spin {
+  100% { background-position: 100% 0, 100% 100%, 0 100%, 0 0; }
+}
+
+.products-loading-text {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  background: var(--agent-task-grady, linear-gradient(90deg, var(--content-text-placeholder, rgba(52, 46, 38, 0.32)) 0%, var(--content-primary, #342E26) 50%, var(--content-text-placeholder, rgba(52, 46, 38, 0.32)) 100%));
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: loadingTextShimmer 5s linear infinite;
+}
+
+/* Skeleton UI Preloader */
+.products-skeleton {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+}
+
+.products-skeleton.hidden {
+  display: none;
+}
+
+.skeleton-card {
+  aspect-ratio: 1;
+  background: var(--surface-secondary);
+  border-radius: var(--radius-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 100%
+  );
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Products Grid Fade In */
+#productsGrid {
+  opacity: 1;
+  transition: opacity 0.4s ease-out;
+}
+
+#productsGrid.fade-in {
+  animation: products-fade-in 0.5s ease-out forwards;
+}
+
+@keyframes products-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Out of Credits State */
+.products-out-of-credits {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-2xl) var(--spacing-lg);
+  text-align: center;
+}
+
+.products-out-of-credits.hidden {
+  display: none;
+}
+
+/* 3D Coins Animation */
+.coins-animation {
+  position: relative;
+  width: 120px;
+  height: 80px;
+  margin-bottom: var(--spacing-lg);
+  perspective: 500px;
+}
+
+.coin {
+  position: absolute;
+  font-size: 48px;
+  animation: coin-bounce 2s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+.coin-1 {
+  left: 10px;
+  top: 10px;
+  animation-delay: 0s;
+}
+
+.coin-2 {
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  animation-delay: 0.3s;
+}
+
+.coin-3 {
+  right: 10px;
+  top: 10px;
+  animation-delay: 0.6s;
+}
+
+@keyframes coin-bounce {
+  0%, 100% {
+    transform: translateY(0) rotateY(0deg) rotateX(10deg);
+  }
+  25% {
+    transform: translateY(-20px) rotateY(180deg) rotateX(-10deg);
+  }
+  50% {
+    transform: translateY(0) rotateY(360deg) rotateX(10deg);
+  }
+  75% {
+    transform: translateY(-10px) rotateY(540deg) rotateX(-5deg);
+  }
+}
+
+.out-of-credits-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--content-primary);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.out-of-credits-message {
+  font-size: var(--font-size-base);
+  color: var(--content-secondary);
+  margin: 0 0 var(--spacing-lg) 0;
+  max-width: 300px;
+}
+
+.refill-credits-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background: var(--content-primary);
+  color: var(--white);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border-radius: var(--radius-full);
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.refill-credits-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive Skeleton Grid */
+@media (max-width: 1023px) {
+  .products-skeleton {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .products-skeleton {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .products-loading {
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+}
