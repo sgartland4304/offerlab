@@ -147,10 +147,12 @@ app.post('/api/gemini', express.json(), async (req, res) => {
     return res.status(500).json({ error: 'Server misconfiguration: GEMINI_API_KEY required' });
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  // Support dynamic model selection via query param (default: gemini-2.0-flash)
+  const model = req.query.model || 'gemini-2.0-flash';
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   try {
-    console.log(`[Gemini Proxy] Processing request...`);
+    console.log(`[Gemini Proxy] Processing request with model: ${model}`);
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -164,7 +166,8 @@ app.post('/api/gemini', express.json(), async (req, res) => {
     }
 
     const data = await response.json();
-    console.log(`[Gemini Proxy] Success - received response`);
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    console.log(`[Gemini Proxy] Success - ${parts.length} parts, keys: ${parts.map(p => Object.keys(p).join('+')).join(', ')}`);
     res.json(data);
   } catch (err) {
     console.error('[Gemini Proxy] Error:', err);

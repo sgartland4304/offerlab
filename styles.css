@@ -279,6 +279,20 @@
   --data-value-4: #81CBA4FF;
   --data-value-5: var(--orange-800);
 
+  /* Pitch modal tokens */
+  --ol-navy: #1B2A4A;
+  --ol-blue: #2E5C8A;
+  --ol-light-blue: #EBF0F7;
+  --ol-accent: #D4762C;
+  --ol-green: #2D8B46;
+  --ol-light-green: #E5F2E9;
+  --ol-light-orange: #FDF0E6;
+  --ol-gray: #666666;
+  --ol-light-gray: #F5F5F5;
+  --ol-border: #E0E0E0;
+  --ol-radius: 12px;
+  --ol-radius-sm: 8px;
+
   /* Base colors */
   --white: #FFFFFFFF;
   --black: #000000FF;
@@ -511,15 +525,189 @@ img {
   height: 20px;
 }
 
-/* Start over button: pill shape for text, same base styles as icon-button */
+/* --------------------------------------------------------------------------
+   Text Buttons (pill-shaped buttons with text)
+   -------------------------------------------------------------------------- */
+
+/* Base text button styles */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--rounded-full);
+  background: var(--content-background-elevated);
+  color: var(--content-primary);
+  font-family: var(--font-family);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+  border: 1px solid var(--content-border-neutral);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background: var(--content-background-overlay);
+}
+
+.btn:active {
+  opacity: 0.6;
+  transform: matrix(0.96, 0, 0, 0.96, 0, 0);
+}
+
+/* Large button (48px height) - used for Start Over */
+.btn--lg {
+  height: 48px;
+  padding: 0 20px;
+  font-size: var(--font-size-base);
+}
+
+/* Medium button (32px height) - used for card actions */
+.btn--md {
+  height: 32px;
+  padding: 0 14px;
+  font-size: var(--font-size-sm);
+}
+
+.btn--md svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Primary button variant - solid dark background */
+.btn--primary {
+  background: var(--content-primary);
+  color: var(--content-background-elevated);
+  border-color: var(--content-primary);
+}
+
+.btn--primary:hover {
+  background: var(--content-secondary);
+  border-color: var(--content-secondary);
+}
+
+/* Secondary button variant - light background with border (default .btn style) */
+.btn--secondary {
+  background: var(--content-background-elevated);
+  color: var(--content-primary);
+  border-color: var(--content-border-neutral);
+}
+
+.btn--secondary:hover {
+  background: var(--content-background-overlay);
+}
+
+/* Card body - contains reason bubble and actions with tighter gap */
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Card action buttons container */
+.card-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.card-actions .btn {
+  flex: 1;
+}
+
+/* Register custom property for animatable gradient angle */
+@property --glow-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+/* Generate pitch wrapper - holds the gradient glow effect */
+.generate-pitch-wrapper {
+  position: relative;
+  flex: 1;
+  --glow-angle: 0deg;
+}
+
+/* Inner glow layer - tighter blur, slightly higher opacity */
+.generate-pitch-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--rounded-full);
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(
+    from var(--glow-angle) at 50% 50%,
+    rgb(78, 0, 255) 0deg,
+    rgb(0, 115, 255) 45deg,
+    rgb(78, 0, 255) 135deg,
+    rgb(208, 0, 255) 180deg,
+    rgb(255, 116, 1) 225deg,
+    rgb(208, 0, 255) 315deg,
+    rgb(78, 0, 255) 360deg
+  );
+  filter: blur(8px);
+  transition: opacity 0.3s ease;
+  animation: pitch-btn-glow 8s linear infinite;
+  animation-play-state: paused;
+}
+
+/* Outer glow layer - wider blur, lower opacity */
+.generate-pitch-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: var(--rounded-full);
+  pointer-events: none;
+  opacity: 0;
+  background: conic-gradient(
+    from var(--glow-angle) at 50% 50%,
+    rgb(78, 0, 255) 0deg,
+    rgb(0, 115, 255) 45deg,
+    rgb(78, 0, 255) 135deg,
+    rgb(208, 0, 255) 180deg,
+    rgb(255, 116, 1) 225deg,
+    rgb(208, 0, 255) 315deg,
+    rgb(78, 0, 255) 360deg
+  );
+  filter: blur(16px);
+  transition: opacity 0.3s ease;
+  animation: pitch-btn-glow 8s linear infinite;
+  animation-play-state: paused;
+}
+
+.generate-pitch-wrapper:hover::before {
+  opacity: 0.1;
+  animation-play-state: running;
+}
+
+.generate-pitch-wrapper:hover::after {
+  opacity: 0.08;
+  animation-play-state: running;
+}
+
+@keyframes pitch-btn-glow {
+  from { --glow-angle: 0deg; }
+  to { --glow-angle: 360deg; }
+}
+
+/* The actual button inside - solid white background covers the center */
+.generate-pitch-wrapper .generate-pitch-btn {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  background: var(--content-background-elevated);
+}
+
+.generate-pitch-wrapper:hover .generate-pitch-btn {
+  background: var(--content-background-elevated);
+}
+
+/* Start over button positioning */
 .header-nav-start-over {
   margin-left: auto;
-  border-radius: var(--rounded-full);
-  padding-left: 16px;
-  padding-right: 16px;
-  font-size: var(--font-size-base);
-  font-weight: 500;
-  font-family: var(--font-family);
 }
 
 /* Results header: back button (left) + search (center) + start over (right) */
@@ -2559,5 +2747,1248 @@ position: absolute;
   
   .products-loading {
     padding: var(--spacing-xl) var(--spacing-md);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Modal
+   -------------------------------------------------------------------------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: modalOverlayFadeIn 0.2s ease;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+@keyframes modalOverlayFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: rgb(245, 245, 245);
+  border-radius: 28px;
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 560px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: modalSlideIn 0.3s ease;
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-bottom: 1px solid var(--content-border-neutral);
+}
+
+.modal-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--content-primary);
+  margin: 0;
+}
+
+.modal-close-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--content-border-neutral);
+  background: var(--content-background-elevated);
+  color: var(--content-primary);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: background 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background: var(--content-background-overlay);
+}
+
+.modal-close-btn:active {
+  opacity: 0.6;
+  transform: matrix(0.96, 0, 0, 0.96, 0, 0);
+}
+
+.modal-close-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.modal-body {
+  padding: 96px 24px 40px 24px;
+  mask-image: linear-gradient(transparent 0%, black 80px, black calc(100% - 80px), transparent 100%);
+  display: flex;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  height: 100%;
+  overflow-y: auto;
+  flex: 1;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 767px) {
+  .modal-overlay {
+    padding: var(--spacing-md);
+  }
+  
+  .modal {
+    max-height: 85vh;
+  }
+  
+  .modal-header {
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+  
+  .modal-body {
+    padding: var(--spacing-lg);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Pitch Modal
+   -------------------------------------------------------------------------- */
+
+/* Pitch modal — drawer style (slides from right) */
+.pitch-modal {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  bottom: 8px;
+  width: 560px;
+  max-height: none;
+  height: calc(100vh - 16px);
+  animation: pitchDrawerSlideIn 0.3s ease forwards;
+}
+
+/* Closing animation on the drawer */
+.pitch-modal.closing {
+  animation: pitchDrawerSlideOut 0.25s ease forwards;
+}
+
+/* Closing animation on the overlay */
+.modal-overlay.closing {
+  animation: modalOverlayFadeOut 0.25s ease forwards;
+}
+
+@keyframes pitchDrawerSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pitchDrawerSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes modalOverlayFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.modal-header-text {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+/* Toolbar — absolutely positioned floating over modal body */
+.pitch-modal-toolbar {
+  position: absolute;
+  width: 100%;
+  top: 24px;
+  padding-left: 24px;
+  padding-right: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.pitch-modal-toolbar > * {
+  pointer-events: auto;
+}
+
+.pitch-modal-toolbar .pitch-toolbar-btn {
+  margin-right: auto;
+}
+
+/* No separate header in pitch modal — body is the only child */
+.pitch-modal .modal-header {
+  display: none;
+}
+
+.pitch-modal .modal-body {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Content area should size to its contents, not stretch */
+.pitch-modal-content {
+  flex: 0 0 auto;
+}
+
+.pitch-modal .modal-header-text {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
+  --favicon-duo-size: 56px;
+}
+
+.modal-header-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pitch-modal .modal-title {
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -1px;
+  line-height: 1.2;
+}
+
+.modal-subtitle-text {
+  font-size: var(--font-size-sm);
+  color: var(--content-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* --- Quick Links Card --- */
+
+.pitch-quick-links {
+  flex: 0 0 auto;
+}
+
+.pitch-quick-links-card {
+  background: var(--content-background-elevated);
+  border-radius: 28px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  padding-bottom: 16px;
+}
+
+.quick-links-section-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--content-primary);
+  letter-spacing: -0.5px;
+  padding: 16px 16px 8px;
+}
+
+.quick-links-group {
+  display: flex;
+  flex-direction: column;
+  padding-left: 20px;
+  padding-right: 20px;
+  gap: 16px;
+}
+
+.quick-links-group-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quick-links-favicon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--rounded-md);
+  object-fit: contain;
+  flex-shrink: 0;
+  padding: 4px;
+  background: var(--content-background-base);
+}
+
+.quick-links-brand-name {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--content-primary);
+}
+
+.quick-links-list {
+  display: flex;
+  flex-direction: column;
+  margin-right: -12px;
+  margin-left: -12px;
+}
+
+.quick-link-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: var(--rounded-full);
+  text-decoration: none;
+  color: var(--content-primary);
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.quick-link-row:hover {
+  background: var(--content-background-overlay);
+}
+
+.quick-link-row:active {
+  background: var(--content-background-overlay-hover);
+}
+
+.quick-link-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--content-primary);
+}
+
+.quick-link-label {
+  flex: 1;
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  color: var(--content-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quick-links-divider {
+  height: 1px;
+  background: var(--content-border-neutral);
+  margin-left: 20px;
+  margin-right: 20px;
+  margin-top: 8px;
+  margin-bottom: 20px;
+}
+
+.modal-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--content-secondary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.modal-subtitle strong {
+  color: var(--content-primary);
+  font-weight: 600;
+}
+
+/* Modal footer */
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-top: 1px solid var(--content-border-neutral);
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Pitch Toolbar Button — dual-state: generating (icon) / regenerate (pill) ── */
+
+.pitch-toolbar-btn {
+  position: relative;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.pitch-toolbar-btn.hidden {
+  display: none;
+}
+
+/* ── Regenerate state: pill button ── */
+.pitch-toolbar-regenerate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pitch-toolbar-btn:not(.is-generating) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 20px;
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  border-radius: var(--rounded-full);
+  background: var(--content-background-elevated);
+  color: var(--content-primary);
+  border: 1px solid var(--content-border-neutral);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.pitch-toolbar-btn:not(.is-generating):hover {
+  background: var(--content-background-overlay);
+}
+
+.pitch-toolbar-btn:not(.is-generating):active {
+  opacity: 0.6;
+  transform: matrix(0.96, 0, 0, 0.96, 0, 0);
+}
+
+/* ── Generating state: circular icon button ── */
+.pitch-toolbar-generating {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.pitch-toolbar-btn.is-generating .pitch-toolbar-regenerate {
+  display: none;
+}
+
+.pitch-toolbar-btn.is-generating .pitch-toolbar-generating {
+  display: flex;
+}
+
+.pitch-toolbar-btn.is-generating {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--content-background-elevated);
+  color: var(--content-primary);
+  border: 1px solid var(--content-border-neutral);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  overflow: visible;
+}
+
+.pitch-toolbar-btn.is-generating:hover {
+  background: var(--content-background-overlay);
+}
+
+.pitch-toolbar-btn.is-generating:active {
+  opacity: 0.6;
+  transform: matrix(0.96, 0, 0, 0.96, 0, 0);
+}
+
+/* Conic gradient spinner ring — content-primary based */
+.pitch-toolbar-btn.is-generating::before {
+  content: '';
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--content-primary) 270deg,
+    transparent 360deg
+  );
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), black calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.5px), black calc(100% - 2.5px));
+  animation: spin-ring 1s linear infinite;
+}
+
+/* Stop icon */
+.pitch-toolbar-stop-svg {
+  width: 20px;
+  height: 20px;
+  color: var(--content-primary);
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Pitch Modal - Initial State
+   -------------------------------------------------------------------------- */
+
+.pitch-initial {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 20px 0;
+  gap: 20px;
+}
+
+.pitch-model-select-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 280px;
+}
+
+.pitch-model-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--content-tertiary);
+}
+
+.pitch-model-select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--ol-border);
+  border-radius: var(--ol-radius-sm);
+  font-size: var(--font-size-sm);
+  font-family: var(--font-family);
+  color: var(--content-primary);
+  background: var(--content-background-elevated);
+  cursor: pointer;
+  text-align: center;
+  appearance: auto;
+}
+
+.pitch-model-select:focus {
+  outline: none;
+  border-color: var(--ol-accent);
+  box-shadow: 0 0 0 2px rgba(212, 118, 44, 0.15);
+}
+
+.pitch-description {
+  font-size: var(--font-size-sm);
+  color: var(--ol-gray);
+  line-height: 1.55;
+  max-width: 480px;
+  margin: 0;
+}
+
+.pitch-generate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: var(--ol-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--rounded-full);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.pitch-generate-btn:hover {
+  background: #C06A28;
+  transform: translateY(-1px);
+}
+
+.pitch-generate-btn:active {
+  transform: translateY(0);
+}
+
+.pitch-generate-btn svg {
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Pitch Modal - Loading / Skeleton State
+   -------------------------------------------------------------------------- */
+
+/* (skeleton now uses .pitch-results wrapper directly) */
+
+/* ── Favicon Duo — overlapping offset brand icons ──
+   Control size via --favicon-duo-size on the element or any parent.
+   Default: 36px. Example override: style="--favicon-duo-size: 52px"
+   ───────────────────────────────────────────────────── */
+
+.favicon-duo {
+  --_size: var(--favicon-duo-size, 56px);
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.favicon-duo img {
+  width: var(--_size);
+  height: var(--_size);
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 2px solid #fff;
+  background: #fff;
+  padding: 8px;
+}
+
+.favicon-duo__back {
+  position: relative;
+  z-index: 1;
+  transform: rotate(-6deg);
+}
+
+.favicon-duo__front {
+  position: relative;
+  z-index: 2;
+  margin-left: calc(var(--_size) * -0.38);
+  transform: rotate(4deg) translateY(0px);
+}
+
+/* ── Brand card header with favicon ── */
+.pitch-brand-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pitch-brand-favicon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--rounded-md);
+  object-fit: cover;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+/* ── Skeleton — uses real section classes + shimmer sweep ── */
+
+/* Shimmer sweep overlay on skeleton sections */
+.pitch-skeleton-section {
+  position: relative;
+}
+
+.pitch-skeleton-section::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 40%,
+    rgba(255, 255, 255, 0.7) 50%,
+    rgba(255, 255, 255, 0.5) 60%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: skeletonSweep 2.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+@keyframes skeletonSweep {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Disable interaction on skeleton headers */
+.pitch-skeleton-section .pitch-section-header {
+  cursor: default;
+}
+
+/* ── Skeleton placeholder lines ── */
+.pitch-skeleton-line {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--content-background-overlay);
+}
+
+.pitch-skeleton-line.short { width: 30%; }
+.pitch-skeleton-line.wide  { width: 50%; height: 12px; }
+.pitch-skeleton-line.full  { width: 100%; }
+
+/* ── Skeleton channel card ── */
+.pitch-skeleton-card-green {
+  background: var(--content-background-overlay);
+  border-radius: var(--rounded-xl);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pitch-skeleton-card-green .pitch-skeleton-line {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* ── Skeleton contact chip ── */
+.pitch-skeleton-chip {
+  width: 100%;
+  height: 56px;
+  border-radius: var(--rounded-xl);
+  background: var(--content-background-overlay);
+}
+
+/* ── Skeleton message card ── */
+.pitch-skeleton-msg .pitch-skeleton-msg-header {
+  height: 42px;
+  background: var(--content-background-overlay);
+}
+
+.pitch-skeleton-msg-body {
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── Skeleton brand card ── */
+.pitch-skeleton-brand-card {
+  border: none;
+  border-radius: var(--rounded-xl);
+  padding: 18px;
+  background: var(--content-background-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 639px) {
+  .pitch-skeleton-brand-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Pitch Modal - Error State
+   -------------------------------------------------------------------------- */
+
+.pitch-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 20px;
+  gap: 16px;
+}
+
+.pitch-error-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--content-sentiment-warning);
+}
+
+.pitch-error-message {
+  font-size: var(--font-size-sm);
+  color: var(--ol-gray);
+  margin: 0;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.pitch-try-again-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 24px;
+  background: var(--ol-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--rounded-full);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.pitch-try-again-btn:hover {
+  background: #C06A28;
+}
+
+/* --------------------------------------------------------------------------
+   Pitch Modal - Results
+   -------------------------------------------------------------------------- */
+
+.pitch-results {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Collapsible sections — modern card style */
+.pitch-section {
+  background: var(--content-background-elevated);
+  border-radius: 28px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  border: none;
+}
+
+.pitch-section-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+
+.pitch-section-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--content-primary);
+  flex-shrink: 0;
+}
+
+.pitch-section-title {
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -1.5px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.pitch-section-chevron {
+  width: 20px;
+  height: 20px;
+  color: var(--content-primary);
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+.pitch-section.collapsed .pitch-section-chevron {
+  transform: rotate(-90deg);
+}
+
+.pitch-section-content {
+  padding: 0 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pitch-section.collapsed .pitch-section-content {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Pitch - Channel & Contact Recommendation
+   -------------------------------------------------------------------------- */
+
+.pitch-channel-card {
+  background: var(--ol-light-green);
+  border-radius: var(--rounded-xl);
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.pitch-channel-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ol-green);
+  margin: 0 0 8px 0;
+}
+
+.pitch-channel-name {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  color: var(--content-primary);
+  margin: 0 0 8px 0;
+}
+
+.pitch-channel-reasoning {
+  font-size: var(--font-size-sm);
+  color: var(--ol-gray);
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Contact chips */
+.pitch-contacts-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--content-tertiary);
+  margin: 0;
+}
+
+.pitch-contacts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pitch-contact-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--content-background-elevated);
+  border: 1px solid var(--content-border-neutral);
+  border-radius: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.pitch-contact-avatar {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: var(--rounded-lg);
+  background: var(--ol-navy);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pitch-contact-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pitch-contact-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--content-primary);
+  line-height: 1.3;
+}
+
+.pitch-contact-title {
+  font-size: 11px;
+  color: var(--ol-gray);
+  line-height: 1.3;
+}
+
+.pitch-contact-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.pitch-contact-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  text-decoration: none;
+  color: var(--content-secondary);
+  background: transparent;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.pitch-contact-icon-btn:hover {
+  background: var(--content-background-overlay);
+  color: var(--content-primary);
+}
+
+.pitch-contact-icon-btn:active {
+  background: var(--content-background-overlay-hover);
+}
+
+.pitch-contact-icon-btn svg {
+  flex-shrink: 0;
+}
+
+/* Contact details (why text) */
+.pitch-contact-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pitch-contact-why {
+  font-size: 13px;
+  color: var(--ol-gray);
+  line-height: 1.55;
+  margin: 0;
+}
+
+.pitch-contact-why strong {
+  color: var(--content-primary);
+  font-weight: 600;
+}
+
+/* Backup channel */
+.pitch-backup-channel {
+  font-size: 13px;
+  color: var(--ol-gray);
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--content-border-neutral);
+}
+
+.pitch-backup-channel strong {
+  color: var(--content-primary);
+}
+
+/* --------------------------------------------------------------------------
+   Pitch - Message Templates
+   -------------------------------------------------------------------------- */
+
+.pitch-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pitch-message-card {
+  border: 1px solid var(--content-border-neutral);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  background: var(--content-background-elevated);
+}
+
+.pitch-message-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--content-background-base);
+  color: var(--content-primary);
+}
+
+.pitch-message-channel {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -.05px;
+}
+
+.pitch-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: var(--content-background-overlay);
+  color: var(--content-primary);
+  border-radius: var(--rounded-full);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  height: 32px;
+}
+
+.pitch-copy-btn:hover {
+  background: var(--content-background-overlay-hover);
+}
+
+.pitch-copy-btn.copied {
+  background: var(--content-sentiment-positive);
+  background: var(--content-sentiment-positive);
+}
+
+.pitch-copy-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.pitch-message-subject {
+  padding: 20px;
+  border-bottom: 1px solid var(--content-border-neutral);
+  font-size: 14px;
+  line-height: 18px;
+  letter-spacing: -.2px;
+  color: var(--content-primary);
+  margin: 0;
+}
+
+.pitch-message-subject strong {
+  color: var(--content-primary);
+}
+
+.pitch-message-body {
+  padding: 20px;
+  font-size: 14px;
+  line-height: 18px;
+  letter-spacing: -.2px;
+  color: var(--content-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Pitch - Brand Intelligence & Conversation Starters
+   -------------------------------------------------------------------------- */
+
+.pitch-brand-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.pitch-brand-card {
+  border: none;
+  border-radius: var(--rounded-xl);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--content-background-neutral);
+}
+
+.pitch-brand-name {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--content-primary);
+  margin: 0;
+}
+
+.pitch-brand-summary {
+  font-size: 13px;
+  color: var(--ol-gray);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.pitch-noteworthy-label,
+.pitch-starters-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--content-tertiary);
+  margin: 0 0 6px 0;
+}
+
+.pitch-noteworthy-list {
+  list-style: disc;
+  padding-left: 18px;
+  margin: 0;
+}
+
+.pitch-noteworthy-list li {
+  font-size: 13px;
+  color: var(--ol-gray);
+  line-height: 1.55;
+  margin-bottom: 4px;
+}
+
+.pitch-noteworthy-list li:last-child {
+  margin-bottom: 0;
+}
+
+.pitch-starters-box {
+  background: var(--ol-light-orange);
+  border-radius: var(--rounded-xl);
+  padding: 14px;
+}
+
+.pitch-starters-label {
+  color: var(--ol-accent);
+}
+
+.pitch-starters-list {
+  list-style: disc;
+  padding-left: 18px;
+  margin: 0;
+}
+
+.pitch-starters-list li {
+  font-size: 13px;
+  color: var(--ol-accent);
+  line-height: 1.55;
+  margin-bottom: 4px;
+}
+
+.pitch-starters-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Pitch Modal - Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+  .pitch-modal {
+    width: 100%;
+    max-width: 100%;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    height: 100vh;
+    height: 100dvh;
+    border-radius: 0;
+  }
+
+  .modal-footer {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  .pitch-brand-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pitch-contact-chip {
+    width: 100%;
+  }
+}
+
+@media (max-width: 639px) {
+  .pitch-brand-grid {
+    grid-template-columns: 1fr;
   }
 }

@@ -94,7 +94,17 @@ const elements = {
 
   // Typing placeholders
   typingPlaceholder: document.getElementById('typingPlaceholder'),
-  resultsTypingPlaceholder: document.getElementById('resultsTypingPlaceholder')
+  resultsTypingPlaceholder: document.getElementById('resultsTypingPlaceholder'),
+
+  // Pitch Modal
+  pitchModalOverlay: document.getElementById('pitchModalOverlay'),
+  pitchModal: document.getElementById('pitchModal'),
+  pitchModalClose: document.getElementById('pitchModalClose'),
+  pitchModalBody: document.getElementById('pitchModalBody'),
+  pitchModalContent: document.getElementById('pitchModalContent'),
+  pitchQuickLinks: document.getElementById('pitchQuickLinks'),
+  pitchModalSubtitle: document.getElementById('pitchModalSubtitle'),
+  pitchToolbarBtn: document.getElementById('pitchToolbarBtn')
 };
 
 /* --------------------------------------------------------------------------
@@ -117,7 +127,39 @@ function updateUrlForSearch(domain) {
 function clearSearchFromUrl() {
   const url = new URL(window.location.href);
   url.searchParams.delete(SEARCH_PARAM);
+  url.searchParams.delete('pitch');
   history.replaceState(null, '', url.toString());
+}
+
+function getPitchFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const p = params.get('pitch');
+  return p ? p.trim() : null;
+}
+
+/**
+ * Attempt to restore pitch modal from URL ?pitch=BrandName param.
+ * Requires currentResults to be populated first (brands must be loaded).
+ */
+function restorePitchFromUrl() {
+  const pitchBrandName = getPitchFromUrl();
+  if (!pitchBrandName || !currentResults?.brands) return;
+
+  // Find matching brand in current results (case-insensitive)
+  const match = currentResults.brands.find(
+    b => b.name && b.name.toLowerCase() === pitchBrandName.toLowerCase()
+  );
+
+  if (match) {
+    console.log(`[PitchModal] Restoring from URL: ${pitchBrandName}`);
+    openPitchModal(match, { skipUrlUpdate: true });
+  } else {
+    console.warn(`[PitchModal] Brand "${pitchBrandName}" not found in current results — ignoring pitch param`);
+    // Clean up stale param
+    const url = new URL(window.location.href);
+    url.searchParams.delete('pitch');
+    history.replaceState(null, '', url.toString());
+  }
 }
 
 function goToLanding() {
@@ -137,8 +179,10 @@ function cancelSearch() {
 }
 
 /* --------------------------------------------------------------------------
-   Results Cache (sessionStorage - survives refresh, cleared when tab closes)
+   Results Cache (localStorage - persists across sessions, 72 hour expiration)
    -------------------------------------------------------------------------- */
+
+const CACHE_EXPIRATION_MS = 72 * 60 * 60 * 1000; // 72 hours in milliseconds
 
 function getCacheKey(domain) {
   return `${CONFIG.STORAGE_KEYS.RESULTS_CACHE}_${domain.toLowerCase()}`;
@@ -147,8 +191,23 @@ function getCacheKey(domain) {
 function getCachedResults(domain) {
   try {
     const key = getCacheKey(domain);
-    const raw = sessionStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    
+    const cached = JSON.parse(raw);
+    
+    // Check if cache has expired
+    if (cached.timestamp) {
+      const age = Date.now() - cached.timestamp;
+      if (age > CACHE_EXPIRATION_MS) {
+        console.log(`[Cache] Expired for ${domain} (age: ${Math.round(age / 1000 / 60 / 60)}h)`);
+        localStorage.removeItem(key);
+        return null;
+      }
+      console.log(`[Cache] Valid for ${domain} (age: ${Math.round(age / 1000 / 60)}min)`);
+    }
+    
+    return cached;
   } catch {
     return null;
   }
@@ -157,7 +216,11 @@ function getCachedResults(domain) {
 function setCachedResults(domain, data) {
   try {
     const key = getCacheKey(domain);
-    sessionStorage.setItem(key, JSON.stringify(data));
+    const dataWithTimestamp = {
+      ...data,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(key, JSON.stringify(dataWithTimestamp));
   } catch (e) {
     console.warn('Failed to cache results:', e);
   }
@@ -205,6 +268,22 @@ function isValidUrl(input) {
 
 function getFaviconUrl(domain) {
   return CONFIG.FAVICON_PRIMARY(domain);
+}
+
+/**
+ * Renders two brand favicons overlaid with offset & rotation.
+ * Size is controlled via CSS --favicon-duo-size on the parent or the element itself.
+ */
+function renderFaviconDuo(domain1, domain2) {
+  const src1 = getFaviconUrl(domain1);
+  const src2 = getFaviconUrl(domain2);
+  const fallback = "this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23ccc%22><rect width=%2224%22 height=%2224%22 rx=%224%22/></svg>';this.onerror=null;";
+  return `
+    <div class="favicon-duo">
+      <img class="favicon-duo__back" src="${src1}" alt="" onerror="${fallback}" />
+      <img class="favicon-duo__front" src="${src2}" alt="" onerror="${fallback}" />
+    </div>
+  `;
 }
 
 /**
@@ -586,7 +665,15 @@ function createBrandCard(brand, index) {
         </button>` : ''}
       </div>
     </div>
-    ${brand.reason ? `<div class="card-reason-bubble"><p class="card-reason">${brand.reason}</p></div>` : ''}
+    <div class="card-body">
+      ${brand.reason ? `<div class="card-reason-bubble"><p class="card-reason">${brand.reason}</p></div>` : ''}
+      <div class="card-actions">
+        <div class="generate-pitch-wrapper" data-brand="${encodeURIComponent(JSON.stringify(brand))}">
+          <button type="button" class="btn btn--md btn--secondary generate-pitch-btn">Create pitch</button>
+        </div>
+        <button type="button" class="btn btn--md btn--secondary visit-btn" data-url="${fullUrl}">Visit</button>
+      </div>
+    </div>
   `;
 
   return card;
@@ -902,6 +989,913 @@ function hideSocialPopover() {
   if (activePopoverCard) {
     activePopoverCard.classList.remove('popover-open');
     activePopoverCard = null;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Pitch Modal
+   -------------------------------------------------------------------------- */
+
+let currentPitchBrand = null;
+let currentPitchBrand1 = null; // Searched brand (pitched TO)
+let currentPitchBrand2 = null; // Recommended brand (collab WITH)
+let currentPitchModel = 'gemini-2.5-flash';
+let pitchAbortController = null;
+let isPitchGenerating = false;
+
+// In-memory cache for generated pitches: Map<"brand1|brand2", resultJSON>
+const pitchCache = new Map();
+
+const PITCH_MODELS = [
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Fast)' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Balanced)' },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Best)' }
+];
+
+const PITCH_SYSTEM_PROMPT = `You are OfferLab's AI Outreach Copilot. You generate hyper-personalized outreach strategies and messages for pitching brands on collaborative commerce.
+
+## WHO YOU ARE WRITING FOR
+Sean Gartland — Chief Product Officer at OfferLab. Sean is a builder and product leader, not a salesperson. His outreach has "builder/founder energy": he leads with credibility, references shared challenges, and pitches from mutual benefit. He genuinely appreciates great brands.
+
+## WHAT OFFERLAB IS
+OfferLab is a collaborative commerce platform that empowers brands and creators to sell together. The core product is collab bundles — curated product bundles combining items from multiple complementary brands, sold through a single checkout experience. Both brands promote the bundle, both brands' audiences discover each other.
+
+Key value props (pick the 1–2 most relevant per brand):
+- New customer acquisition: Every collab partner brings their own audience. The bundle is a customer acquisition channel for both brands.
+- Higher AOV: Bundles naturally drive higher average order values because customers get more value in a single purchase.
+- Turnkey infrastructure: OfferLab handles checkout, revenue splitting, fulfillment coordination — brands focus on creative and product.
+- We come with partners: OfferLab has already identified complementary brands for them. This is the killer differentiator — don't just pitch the platform, come with the collab ideas.
+- Single checkout: Customers can buy from both brands in one seamless transaction.
+
+## SEAN'S VOICE RULES
+- Builder/founder energy — "I'm building something" not "I'm selling something"
+- Open with a SPECIFIC thing you admire about their brand — not generic flattery. Reference a real product, a real collab, a real decision they made.
+- Frame as mutual benefit — never "I need you on our platform"
+- Concise — LinkedIn DMs: 3–5 sentences max. Emails: under 150 words. IG DMs: 2–3 sentences.
+- Always reference something concrete about their brand
+- Sign off as: Sean Gartland, CPO at OfferLab
+
+## CHANNEL SELECTION LOGIC
+Evaluate brand signals and recommend the best primary outreach channel:
+
+- Founder active on LinkedIn (posts, comments, shares content regularly) → LinkedIn DM
+- Strong 2nd-degree connection available → Warm Intro via LinkedIn
+- DTC-native brand, founder-led, strong Instagram presence (>50K followers) → Instagram DM
+- More corporate, wholesale-heavy, has a PR/media team → Email
+- Tech-forward brand, Shopify Plus, integrations-savvy → Email + Video (Loom)
+- Brand has done collab drops or limited editions before → LinkedIn DM + attach deck
+- Very small team (<10 people), founder does everything → Instagram DM or LinkedIn direct to founder
+- No clear individual contact, larger company (50+ employees) → Email to partnerships@ or BD lead
+
+Always recommend a backup channel for a Day 10–14 follow-up if the primary doesn't get a response.
+
+## CONTACT IDENTIFICATION (TIER SYSTEM)
+When suggesting who to reach out to, rank by these tiers:
+
+Tier 1 (Primary targets):
+- Head of Partnerships, Business Development, Revenue, Growth Marketing
+- Sales Director or above
+- E-commerce Director, DTC Lead, Head of Digital
+
+Tier 2 (Strong secondary):
+- Brand/Creative Director, Head of Marketing, Head of Content/Story
+- COO, VP Operations, Product Operations lead
+
+Tier 3 (Escalation or small teams):
+- Founder / CEO — best when team is under 15 people, or as escalation after Tier 1/2 don't respond
+
+Rule: If the brand has fewer than 15 employees, go straight to the founder.
+
+## CONTACT DETAILS REQUIREMENTS
+For each suggested contact, you MUST provide:
+- **name**: Use the REAL full name of a person at the company if you know it (e.g. "Sarah Chen"). If you are not confident in a specific name, use the role title instead (e.g. "Head of Partnerships") but try your best to recall real names.
+- **title**: Their actual role/title at the brand.
+- **linkedin_url**: If you know the person's real name, provide a direct LinkedIn search URL in the format: "https://www.linkedin.com/search/results/people/?keywords={Full Name} {Company Name}". This helps the user quickly find and verify the contact. If you only have a role title, use: "https://www.linkedin.com/search/results/people/?keywords={Role Title} {Company Name}".
+- **email**: If the brand's email pattern is known or inferable (e.g. first@company.com), provide a best-guess email. Otherwise set to null. Common DTC patterns: first@domain.com, firstname@domain.com, hello@domain.com for small teams.
+
+## MESSAGE STRUCTURE GUIDELINES
+
+LinkedIn DM structure:
+1. One sentence: specific compliment about their brand (reference something real)
+2. One sentence: who you are and what OfferLab does
+3. One sentence: why there's a natural fit (reference their collab history or product range)
+4. One sentence: the hook — "we've already identified brands that would be great collab partners"
+5. CTA: "15 min, totally informal. Worth a look?"
+
+Email structure:
+1. Opening: specific compliment referencing a real product, launch, or decision
+2. What OfferLab is: one sentence positioning
+3. The collab bundle concept: paint a specific picture of what a Brand 1 × Brand 2 bundle could look like (name actual products)
+4. The hook: "we've already identified brands that would be amazing collab partners"
+5. CTA: "15 minutes — happy to share a deck in advance if helpful"
+6. Sign-off with title and links
+
+Instagram DM structure:
+1. Casual greeting + one specific thing you love about their brand (reference a recent post or product)
+2. What you built: one sentence
+3. Paint the collab picture briefly
+4. CTA: "quick call or I can send a short video walkthrough — whatever's easier"
+
+Follow-up (Day 5) structure:
+- 2–3 sentences max
+- Don't re-pitch — just remind
+- Lower the commitment: "10-min walkthrough" instead of "15-min call"
+
+## CRITICAL RULES
+- Every message MUST reference something specific about Brand 1 — not generic praise
+- Every message MUST paint a concrete picture of what the Brand 1 × Brand 2 bundle could look like, ideally naming specific products from both brands
+- Messages must be in Sean's builder/founder voice — NOT salesy, NOT corporate
+- Conversation starters must be specific enough that Brand 1 thinks "this person actually follows us"
+- If you don't have confident information about recent specific events for a brand, describe what you do know accurately and note what to verify — do NOT fabricate specific dates, revenue figures, or press mentions
+- Return ONLY valid JSON matching the exact schema specified — no markdown fences, no explanation text before or after`;
+
+function buildPitchUserPrompt(brand1Name, brand2Name, context) {
+  // Build rich context block from existing app data
+  let contextBlock = `Brand 1 (the brand Sean is pitching TO — the recipient): ${brand1Name}
+Brand 2 (the brand Sean is suggesting Brand 1 should collaborate WITH via OfferLab): ${brand2Name}`;
+
+  if (context) {
+    contextBlock += '\n\n=== CONTEXT WE ALREADY KNOW ===\n';
+
+    if (context.searchedBrand) {
+      const sb = context.searchedBrand;
+      contextBlock += `\nAbout ${brand1Name}:\n`;
+      if (sb.description) contextBlock += `- Description: ${sb.description}\n`;
+      if (sb.brandDNA) contextBlock += `- Brand DNA: ${sb.brandDNA}\n`;
+      if (sb.targetCustomer) contextBlock += `- Target Customer: ${sb.targetCustomer}\n`;
+      if (sb.url) contextBlock += `- Website: ${sb.url}\n`;
+    }
+
+    if (context.recommendedBrand) {
+      const rb = context.recommendedBrand;
+      contextBlock += `\nAbout ${brand2Name}:\n`;
+      if (rb.url) contextBlock += `- Website: ${rb.url}\n`;
+      if (rb.category) contextBlock += `- Collaboration angle: ${rb.category}\n`;
+      if (rb.brandStage) contextBlock += `- Brand stage: ${rb.brandStage}\n`;
+      if (rb.reason) contextBlock += `- Why this is a good collab match: ${rb.reason}\n`;
+      if (rb.bundleIdea) contextBlock += `- Bundle concept: ${rb.bundleIdea}\n`;
+    }
+  }
+
+  return `Generate a personalized outreach strategy and messages.
+
+${contextBlock}
+
+Use all the context above to write highly personalized, specific outreach. Return a JSON object matching this exact schema:
+
+{
+  "channel_recommendation": {
+    "primary_channel": "linkedin_dm | instagram_dm | email | video_loom",
+    "channel_display_name": "Human-readable channel name (e.g. 'LinkedIn DM')",
+    "reasoning": "2-3 sentences explaining WHY this channel is best for this specific brand, referencing brand signals you observed",
+    "suggested_contacts": [
+      {
+        "name": "Real full name if known, otherwise a role title like 'Head of Partnerships'",
+        "title": "Their role/title at the brand",
+        "tier": 1,
+        "why": "One sentence on why this specific person is the right target",
+        "linkedin_url": "LinkedIn search URL to find this person (https://www.linkedin.com/search/results/people/?keywords=Name+Company)",
+        "email": "Best-guess email address or null if unknown"
+      }
+    ],
+    "backup_channel": "linkedin_dm | instagram_dm | email",
+    "backup_display_name": "Human-readable backup channel name"
+  },
+  "messages": {
+    "primary": {
+      "channel": "linkedin_dm | instagram_dm | email | video_loom",
+      "channel_label": "LinkedIn DM",
+      "recipient": "Name — Title at Brand",
+      "subject": "Email subject line, or null for DMs",
+      "body": "The full drafted message in Sean's voice"
+    },
+    "secondary": {
+      "channel": "backup channel type",
+      "channel_label": "Email",
+      "recipient": "Name — Title at Brand",
+      "subject": "Subject line or null",
+      "body": "Alternative message for the backup channel"
+    },
+    "follow_up": {
+      "channel_label": "Follow-Up (Day 5)",
+      "body": "Short 2-3 sentence follow-up"
+    }
+  },
+  "brand_intelligence": {
+    "brand_1": {
+      "name": "Brand 1's name",
+      "summary": "2-3 sentence brand overview — what they sell, who they are, what makes them interesting",
+      "noteworthy": [
+        "A specific recent product launch, collab, press mention, or milestone",
+        "Another noteworthy detail",
+        "A third item if available"
+      ],
+      "conversation_starters": [
+        "A specific, natural thing Sean could mention to show he genuinely follows their brand",
+        "Another conversation starter"
+      ]
+    },
+    "brand_2": {
+      "name": "Brand 2's name",
+      "summary": "2-3 sentence brand overview",
+      "noteworthy": [
+        "A specific detail about this brand",
+        "Another item"
+      ],
+      "conversation_starters": [
+        "Something that connects Brand 2 to Brand 1 and makes the collab feel like a natural fit",
+        "Another angle"
+      ]
+    }
+  }
+}`;
+}
+
+/* --- Pitch Utilities --- */
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const el = document.createElement('span');
+  el.textContent = str;
+  return el.innerHTML;
+}
+
+function getInitials(name) {
+  if (!name) return '?';
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+async function copyPitchMessage(elementId, buttonEl) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  try {
+    await navigator.clipboard.writeText(el.textContent);
+    buttonEl.textContent = 'Copied!';
+    buttonEl.classList.add('copied');
+    setTimeout(() => {
+      buttonEl.textContent = 'Copy';
+      buttonEl.classList.remove('copied');
+    }, 2000);
+  } catch {
+    // Fallback for older browsers
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('copy');
+    sel.removeAllRanges();
+    buttonEl.textContent = 'Copied!';
+    buttonEl.classList.add('copied');
+    setTimeout(() => {
+      buttonEl.textContent = 'Copy';
+      buttonEl.classList.remove('copied');
+    }, 2000);
+  }
+}
+
+/* --- Pitch API Call --- */
+
+async function generatePitchContent(brand1, brand2, model, context, { signal } = {}) {
+  console.log(`[Pitch] Generating pitch: ${brand1} ↔ ${brand2} (model: ${model})`);
+
+  const requestBody = {
+    system_instruction: {
+      parts: [{ text: PITCH_SYSTEM_PROMPT }]
+    },
+    contents: [{
+      parts: [{ text: buildPitchUserPrompt(brand1, brand2, context) }]
+    }],
+    generationConfig: {
+      temperature: 0.8,
+      topP: 0.95,
+      maxOutputTokens: 4096,
+      responseMimeType: 'application/json'
+    }
+  };
+
+  const response = await fetch(`/api/gemini?model=${encodeURIComponent(model)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
+    signal
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `API request failed (${response.status})`);
+  }
+
+  const data = await response.json();
+  console.log('[Pitch] Raw API response:', JSON.stringify(data).substring(0, 500));
+
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  const textPart = parts.find(p => p.text);
+  const text = textPart?.text;
+  if (!text) {
+    console.error('[Pitch] No text found in parts:', JSON.stringify(parts).substring(0, 300));
+    throw new Error('No response from Gemini');
+  }
+
+  // Strip potential markdown fences (Gemini sometimes wraps even with responseMimeType)
+  const cleaned = text.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+
+  let result;
+  try {
+    result = JSON.parse(cleaned);
+  } catch (parseErr) {
+    // Try jsonrepair as fallback
+    try {
+      result = JSON.parse(jsonrepair(cleaned));
+    } catch {
+      console.error('[Pitch] Failed to parse JSON:', cleaned.substring(0, 300));
+      throw new Error('Failed to parse Gemini response as JSON');
+    }
+  }
+
+  console.log('[Pitch] Parsed response:', result);
+  return result;
+}
+
+/* --- Pitch Modal State Rendering --- */
+
+function renderPitchInitialState(brand1, brand2) {
+  const modelOptions = PITCH_MODELS.map(m =>
+    `<option value="${m.value}"${m.value === currentPitchModel ? ' selected' : ''}>${escapeHtml(m.label)}</option>`
+  ).join('');
+
+  elements.pitchModalContent.innerHTML = `
+    <div class="pitch-initial">
+      <div class="pitch-model-select-group">
+        <label class="pitch-model-label" for="pitchModelSelect">Model</label>
+        <select class="pitch-model-select" id="pitchModelSelect">${modelOptions}</select>
+      </div>
+      <p class="pitch-description">AI will research both brands, recommend the best outreach channel and contacts, draft personalized messages in your voice, and surface noteworthy details for conversation starters.</p>
+      <button type="button" class="pitch-generate-btn" id="pitchGenerateBtn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+        Generate Pitch
+      </button>
+    </div>
+  `;
+
+  setPitchToolbarState('hidden');
+}
+
+function renderQuickLinksCard(searchedBrand, partnerBrand) {
+  const container = elements.pitchQuickLinks;
+  if (!container) return;
+
+  const brands = [
+    { name: searchedBrand?.name || 'Brand 1', url: searchedBrand?.url || '', social: searchedBrand?.social || {} },
+    { name: partnerBrand?.name || 'Brand 2', url: partnerBrand?.url || '', social: partnerBrand?.social || {} }
+  ];
+
+  const websiteIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path stroke="currentColor" stroke-linecap="square" stroke-width="2" d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c-2.21 0-4-4.03-4-9s1.79-9 4-9m0 18c2.21 0 4-4.03 4-9s-1.79-9-4-9m0 0a9 9 0 0 0-9 9"/></svg>`;
+  const instagramIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7.858 2.07c-1.064.05-1.79.22-2.425.47-.658.256-1.215.6-1.77 1.156a4.898 4.898 0 0 0-1.15 1.772c-.246.637-.413 1.364-.46 2.429-.047 1.064-.057 1.407-.052 4.122.005 2.716.017 3.056.069 4.123.05 1.064.22 1.79.47 2.425.256.658.6 1.215 1.156 1.77a4.892 4.892 0 0 0 1.774 1.15c.636.245 1.363.413 2.428.46 1.064.046 1.407.057 4.122.052 2.715-.005 3.056-.017 4.123-.068 1.067-.05 1.79-.221 2.425-.47a4.9 4.9 0 0 0 1.769-1.156 4.9 4.9 0 0 0 1.15-1.774c.246-.636.413-1.363.46-2.427.046-1.067.057-1.408.052-4.123-.005-2.715-.018-3.056-.068-4.122-.05-1.067-.22-1.79-.47-2.427a4.91 4.91 0 0 0-1.156-1.769 4.88 4.88 0 0 0-1.773-1.15c-.637-.245-1.364-.413-2.428-.46-1.065-.045-1.407-.057-4.123-.052-2.716.005-3.056.017-4.123.069Zm.117 18.078c-.975-.043-1.504-.205-1.857-.34-.467-.18-.8-.398-1.152-.746a3.08 3.08 0 0 1-.75-1.149c-.137-.352-.302-.881-.347-1.856-.05-1.054-.06-1.37-.066-4.04-.006-2.67.004-2.986.05-4.04.042-.974.205-1.504.34-1.857.18-.468.397-.8.746-1.151a3.087 3.087 0 0 1 1.149-.75c.353-.138.881-.302 1.856-.348 1.054-.05 1.37-.06 4.04-.066 2.67-.006 2.986.004 4.041.05.974.043 1.505.204 1.857.34.467.18.8.397 1.151.746.352.35.568.682.75 1.15.138.35.302.88.348 1.855.05 1.054.062 1.37.066 4.04.005 2.669-.004 2.986-.05 4.04-.043.975-.205 1.504-.34 1.857a3.1 3.1 0 0 1-.747 1.152c-.349.35-.681.567-1.148.75-.352.137-.882.301-1.855.347-1.055.05-1.371.06-4.041.066-2.671.006-2.986-.005-4.04-.05Zm8.153-13.493a1.2 1.2 0 1 0 2.398-.003 1.2 1.2 0 0 0-2.398.003ZM6.865 12.01a5.134 5.134 0 1 0 10.27-.02 5.134 5.134 0 0 0-10.27.02Zm1.802-.004a3.333 3.333 0 1 1 6.666-.013 3.333 3.333 0 0 1-6.666.013Z"/></svg>`;
+  const tiktokIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12.438 2.017C13.529 2 14.613 2.008 15.696 2c.067 1.275.525 2.575 1.458 3.475.934.925 2.25 1.35 3.534 1.492v3.358c-1.2-.042-2.409-.292-3.5-.808-.475-.217-.917-.492-1.35-.775-.009 2.433.008 4.866-.017 7.291a6.366 6.366 0 0 1-1.125 3.284c-1.092 1.6-2.983 2.641-4.925 2.674-1.192.067-2.383-.258-3.4-.858-1.683-.992-2.867-2.808-3.042-4.758a15.445 15.445 0 0 1-.008-1.242c.15-1.583.933-3.1 2.15-4.133 1.383-1.2 3.317-1.775 5.125-1.433.017 1.233-.033 2.466-.033 3.7-.825-.267-1.792-.192-2.517.308a2.893 2.893 0 0 0-1.133 1.458c-.175.425-.125.892-.117 1.342.2 1.366 1.517 2.517 2.917 2.392.933-.009 1.825-.55 2.308-1.342.158-.275.333-.559.342-.884.083-1.491.05-2.975.058-4.466.008-3.358-.008-6.708.017-10.058Z"/></svg>`;
+  const facebookIcon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.523 0 10 4.477 10 10 0 4.991-3.657 9.129-8.438 9.879V14.89h2.33l.445-2.89h-2.773v-1.876c0-.79.387-1.562 1.63-1.562h1.26v-2.46s-.876-.15-1.828-.187l-.41-.009c-2.284 0-3.777 1.385-3.777 3.89V12h-2.54v2.89h2.54v6.989C5.657 21.129 2 16.99 2 12 2 6.477 6.477 2 12 2Z"/></svg>`;
+
+  function buildBrandLinks(brand) {
+    const links = [];
+    const domain = extractDomain(brand.url || '');
+    const faviconSrc = domain ? getFaviconUrl(domain) : '';
+
+    // Website link (always show if URL exists)
+    if (brand.url) {
+      const displayUrl = domain || brand.url.replace(/^https?:\/\//, '');
+      links.push(`
+        <a href="${escapeHtml(brand.url)}" target="_blank" rel="noopener noreferrer" class="quick-link-row">
+          <span class="quick-link-label">${escapeHtml(displayUrl)}</span>
+          <span class="quick-link-icon">${websiteIcon}</span>
+        </a>
+      `);
+    }
+
+    const social = brand.social && typeof brand.social === 'object' ? brand.social : {};
+
+    // Instagram
+    if (social.instagram) {
+      const igUrl = social.instagram.startsWith('http') ? social.instagram : `https://instagram.com/${social.instagram}`;
+      const igHandle = social.instagram.startsWith('http') ? social.instagram.split('/').pop() : social.instagram;
+      links.push(`
+        <a href="${escapeHtml(igUrl)}" target="_blank" rel="noopener noreferrer" class="quick-link-row">
+          <span class="quick-link-label">@${escapeHtml(igHandle)}</span>
+          <span class="quick-link-icon">${instagramIcon}</span>
+        </a>
+      `);
+    }
+
+    // TikTok
+    if (social.tiktok) {
+      const ttUrl = social.tiktok.startsWith('http') ? social.tiktok : `https://tiktok.com/@${social.tiktok}`;
+      const ttHandle = social.tiktok.startsWith('http') ? social.tiktok.split('/').pop().replace('@', '') : social.tiktok.replace('@', '');
+      links.push(`
+        <a href="${escapeHtml(ttUrl)}" target="_blank" rel="noopener noreferrer" class="quick-link-row">
+          <span class="quick-link-label">@${escapeHtml(ttHandle)}</span>
+          <span class="quick-link-icon">${tiktokIcon}</span>
+        </a>
+      `);
+    }
+
+    // Facebook
+    if (social.facebook) {
+      const fbUrl = social.facebook.startsWith('http') ? social.facebook : `https://facebook.com/${social.facebook}`;
+      links.push(`
+        <a href="${escapeHtml(fbUrl)}" target="_blank" rel="noopener noreferrer" class="quick-link-row">
+          <span class="quick-link-label">Facebook</span>
+          <span class="quick-link-icon">${facebookIcon}</span>
+        </a>
+      `);
+    }
+
+    return { links, faviconSrc };
+  }
+
+  const brand1Data = buildBrandLinks(brands[0]);
+  const brand2Data = buildBrandLinks(brands[1]);
+
+  // Only render if at least one brand has links
+  if (brand1Data.links.length === 0 && brand2Data.links.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  function renderBrandGroup(brandName, faviconSrc, links) {
+    if (links.length === 0) return '';
+    return `
+      <div class="quick-links-group">
+        <div class="quick-links-group-header">
+          ${faviconSrc ? `<img class="quick-links-favicon" src="${faviconSrc}" alt="" onerror="this.style.display='none'" />` : ''}
+          <span class="quick-links-brand-name">${escapeHtml(brandName)}</span>
+        </div>
+        <div class="quick-links-list">
+          ${links.join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="pitch-quick-links-card">
+    <div class="pitch-section-header">
+      <h3 class="pitch-section-title">Connect</h3>
+          </div>
+      ${renderBrandGroup(brands[0].name, brand1Data.faviconSrc, brand1Data.links)}
+      ${brand1Data.links.length > 0 && brand2Data.links.length > 0 ? '<div class="quick-links-divider"></div>' : ''}
+      ${renderBrandGroup(brands[1].name, brand2Data.faviconSrc, brand2Data.links)}
+    </div>
+  `;
+}
+
+function renderPitchLoadingState() {
+  elements.pitchModalContent.innerHTML = `
+    <div class="pitch-results">
+      <!-- Skeleton: Channel & Contacts -->
+      <div class="pitch-section pitch-skeleton-section">
+        <div class="pitch-section-header">
+          <div class="pitch-skeleton-line" style="width: 55%; height: 14px;"></div>
+        </div>
+        <div class="pitch-section-content">
+          <div class="pitch-skeleton-card-green">
+            <div class="pitch-skeleton-line short"></div>
+            <div class="pitch-skeleton-line wide"></div>
+            <div class="pitch-skeleton-line full"></div>
+            <div class="pitch-skeleton-line" style="width: 75%;"></div>
+          </div>
+          <div class="pitch-skeleton-line" style="width: 40%; height: 8px;"></div>
+          <div class="pitch-contacts-list">
+            <div class="pitch-skeleton-chip"></div>
+            <div class="pitch-skeleton-chip"></div>
+          </div>
+          <div class="pitch-skeleton-line full"></div>
+          <div class="pitch-skeleton-line" style="width: 60%;"></div>
+        </div>
+      </div>
+
+      <!-- Skeleton: Messages -->
+      <div class="pitch-section pitch-skeleton-section">
+        <div class="pitch-section-header">
+          <div class="pitch-skeleton-line" style="width: 35%; height: 14px;"></div>
+        </div>
+        <div class="pitch-section-content">
+          <div class="pitch-messages">
+            <div class="pitch-message-card pitch-skeleton-msg">
+              <div class="pitch-skeleton-msg-header"></div>
+              <div class="pitch-skeleton-msg-body">
+                <div class="pitch-skeleton-line full"></div>
+                <div class="pitch-skeleton-line full"></div>
+                <div class="pitch-skeleton-line" style="width: 90%;"></div>
+                <div class="pitch-skeleton-line" style="width: 65%;"></div>
+              </div>
+            </div>
+            <div class="pitch-message-card pitch-skeleton-msg">
+              <div class="pitch-skeleton-msg-header"></div>
+              <div class="pitch-skeleton-msg-body">
+                <div class="pitch-skeleton-line full"></div>
+                <div class="pitch-skeleton-line full"></div>
+                <div class="pitch-skeleton-line" style="width: 75%;"></div>
+              </div>
+            </div>
+            <div class="pitch-message-card pitch-skeleton-msg">
+              <div class="pitch-skeleton-msg-header"></div>
+              <div class="pitch-skeleton-msg-body">
+                <div class="pitch-skeleton-line full"></div>
+                <div class="pitch-skeleton-line" style="width: 80%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Skeleton: Brand Intel -->
+      <div class="pitch-section pitch-skeleton-section">
+        <div class="pitch-section-header">
+          <div class="pitch-skeleton-line" style="width: 30%; height: 14px;"></div>
+        </div>
+        <div class="pitch-section-content">
+          <div class="pitch-brand-grid">
+            <div class="pitch-skeleton-brand-card">
+              <div class="pitch-skeleton-line wide"></div>
+              <div class="pitch-skeleton-line full"></div>
+              <div class="pitch-skeleton-line" style="width: 80%;"></div>
+              <div class="pitch-skeleton-line" style="width: 55%;"></div>
+            </div>
+            <div class="pitch-skeleton-brand-card">
+              <div class="pitch-skeleton-line wide"></div>
+              <div class="pitch-skeleton-line full"></div>
+              <div class="pitch-skeleton-line" style="width: 70%;"></div>
+              <div class="pitch-skeleton-line" style="width: 50%;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderPitchError(errorMessage) {
+  elements.pitchModalContent.innerHTML = `
+    <div class="pitch-error">
+      <svg class="pitch-error-icon" viewBox="0 0 24 24" fill="none"><path fill="currentColor" fill-rule="evenodd" d="M8.603 4.07c1.565-2.517 5.229-2.517 6.794 0l6.103 9.818C23.156 16.553 21.24 20 18.102 20H5.897C2.76 20 .844 16.553 2.5 13.888l6.103-9.817ZM12 8a1 1 0 0 1 1 1v3a1 1 0 1 1-2 0V9a1 1 0 0 1 1-1Zm-1.25 7a1.25 1.25 0 1 1 2.5 0 1.25 1.25 0 0 1-2.5 0Z" clip-rule="evenodd"/></svg>
+      <p class="pitch-error-message">${escapeHtml(errorMessage)}</p>
+      <button type="button" class="pitch-try-again-btn" id="pitchTryAgainBtn">Try Again</button>
+    </div>
+  `;
+}
+
+function renderPitchResults(data) {
+  const channelHtml = renderChannelSection(data.channel_recommendation);
+  const messagesHtml = renderMessagesSection(data.messages);
+  const intelligenceHtml = renderBrandIntelligenceSection(data.brand_intelligence);
+
+  elements.pitchModalContent.innerHTML = `
+    <div class="pitch-results">
+      ${channelHtml}
+      ${messagesHtml}
+      ${intelligenceHtml}
+    </div>
+  `;
+}
+
+/* --- Section Renderers --- */
+
+function renderChannelSection(channel) {
+  if (!channel) return '';
+
+  // Contacts chips with LinkedIn & email links
+  const contacts = channel.suggested_contacts || [];
+  const chipsHtml = contacts.map(c => {
+    const linkedinUrl = c.linkedin_url ? escapeHtml(c.linkedin_url) : null;
+    const email = c.email ? escapeHtml(c.email) : null;
+
+    // Build icon buttons
+    const iconButtons = [];
+    if (linkedinUrl) {
+      iconButtons.push(`<a href="${linkedinUrl}" target="_blank" rel="noopener noreferrer" class="pitch-contact-icon-btn" title="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>`);
+    }
+    if (email) {
+      iconButtons.push(`<a href="mailto:${email}" class="pitch-contact-icon-btn" title="${email}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></a>`);
+    }
+    const actionsHtml = iconButtons.length > 0 ? `<div class="pitch-contact-actions">${iconButtons.join('')}</div>` : '';
+
+    return `
+      <div class="pitch-contact-chip">
+        <div class="pitch-contact-avatar">${escapeHtml(getInitials(c.name))}</div>
+        <div class="pitch-contact-info">
+          <span class="pitch-contact-name">${escapeHtml(c.name)}</span>
+          <span class="pitch-contact-title">${escapeHtml(c.title)}</span>
+        </div>
+        ${actionsHtml}
+      </div>
+    `;
+  }).join('');
+
+  // Contact why details
+  const contactDetailsHtml = contacts.map(c => `
+    <p class="pitch-contact-why"><strong>Tier ${c.tier} — ${escapeHtml(c.name)}:</strong> ${escapeHtml(c.why)}</p>
+  `).join('');
+
+  return `
+    <div class="pitch-section" data-section="channel">
+      <div class="pitch-section-header">
+        <h3 class="pitch-section-title">Channel & Contacts</h3>
+        <svg class="pitch-section-chevron" viewBox="0 0 24 24" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m20 9-8 8-8-8"/></svg>
+      </div>
+      <div class="pitch-section-content">
+        <div class="pitch-channel-card">
+          <p class="pitch-channel-label">Recommended Channel</p>
+          <p class="pitch-channel-name">${escapeHtml(channel.channel_display_name)}</p>
+          <p class="pitch-channel-reasoning">${escapeHtml(channel.reasoning)}</p>
+        </div>
+        ${contacts.length > 0 ? `
+          <p class="pitch-contacts-heading">Suggested Contacts</p>
+          <div class="pitch-contacts-list">${chipsHtml}</div>
+          <div class="pitch-contact-details">${contactDetailsHtml}</div>
+        ` : ''}
+        ${channel.backup_display_name ? `
+          <p class="pitch-backup-channel"><strong>Backup channel (Day 10–14):</strong> ${escapeHtml(channel.backup_display_name)}</p>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderMessagesSection(messages) {
+  if (!messages) return '';
+
+  const messageCards = [];
+
+  // Primary
+  if (messages.primary) {
+    messageCards.push(renderSingleMessage(messages.primary, 'msg-primary'));
+  }
+
+  // Secondary
+  if (messages.secondary) {
+    messageCards.push(renderSingleMessage(messages.secondary, 'msg-secondary'));
+  }
+
+  // Follow-up (fewer fields)
+  if (messages.follow_up) {
+    messageCards.push(renderSingleMessage(messages.follow_up, 'msg-followup'));
+  }
+
+  return `
+    <div class="pitch-section" data-section="messages">
+      <div class="pitch-section-header">
+        <h3 class="pitch-section-title">Messages</h3>
+        <svg class="pitch-section-chevron" viewBox="0 0 24 24" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m20 9-8 8-8-8"/></svg>
+      </div>
+      <div class="pitch-section-content">
+        <div class="pitch-messages">${messageCards.join('')}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSingleMessage(msg, id) {
+  const channelLabel = escapeHtml(msg.channel_label || '');
+  const hasSubject = msg.subject != null && msg.subject !== '';
+  const body = escapeHtml(msg.body || '');
+
+  return `
+    <div class="pitch-message-card">
+      <div class="pitch-message-header">
+        <span class="pitch-message-channel">${channelLabel}</span>
+        <button type="button" class="pitch-copy-btn" data-copy-target="${id}"><svg viewBox="0 0 24 24" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9V5.25A2.25 2.25 0 0 1 11.25 3h7.5A2.25 2.25 0 0 1 21 5.25v7.5A2.25 2.25 0 0 1 18.75 15H15m-2.25-6h-7.5A2.25 2.25 0 0 0 3 11.25v7.5A2.25 2.25 0 0 0 5.25 21h7.5A2.25 2.25 0 0 0 15 18.75v-7.5A2.25 2.25 0 0 0 12.75 9Z"/></svg> Copy</button>
+      </div>
+      ${hasSubject ? `<p class="pitch-message-subject"><strong>Subject:</strong> ${escapeHtml(msg.subject)}</p>` : ''}
+      <div class="pitch-message-body" id="${id}">${body}</div>
+    </div>
+  `;
+}
+
+function renderBrandIntelligenceSection(intelligence) {
+  if (!intelligence) return '';
+
+  // Get domains for favicons
+  const searchedDomain = extractDomain(currentResults?.searchedBrand?.url || '');
+  const partnerDomain = extractDomain(currentPitchBrand?.url || '');
+
+  const renderBrandCard = (brand, domain) => {
+    if (!brand) return '';
+
+    const faviconSrc = domain ? getFaviconUrl(domain) : '';
+    const noteworthy = (brand.noteworthy || []).map(n =>
+      `<li>${escapeHtml(n)}</li>`
+    ).join('');
+
+    const starters = (brand.conversation_starters || []).map(s =>
+      `<li>${escapeHtml(s)}</li>`
+    ).join('');
+
+    return `
+      <div class="pitch-brand-card">
+        <div class="pitch-brand-card-header">
+          ${faviconSrc ? `<img class="pitch-brand-favicon" src="${faviconSrc}" alt="" onerror="this.style.display='none'" />` : ''}
+          <h4 class="pitch-brand-name">${escapeHtml(brand.name)}</h4>
+        </div>
+        <p class="pitch-brand-summary">${escapeHtml(brand.summary)}</p>
+        ${noteworthy ? `
+          <div>
+            <p class="pitch-noteworthy-label">Noteworthy</p>
+            <ul class="pitch-noteworthy-list">${noteworthy}</ul>
+          </div>
+        ` : ''}
+        ${starters ? `
+          <div class="pitch-starters-box">
+            <p class="pitch-starters-label">Conversation Starters</p>
+            <ul class="pitch-starters-list">${starters}</ul>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  };
+
+  return `
+    <div class="pitch-section" data-section="intelligence">
+      <div class="pitch-section-header">
+        <h3 class="pitch-section-title">Brand Intel</h3>
+        <svg class="pitch-section-chevron" viewBox="0 0 24 24" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m20 9-8 8-8-8"/></svg>
+      </div>
+      <div class="pitch-section-content">
+        <div class="pitch-brand-grid">
+          ${renderBrandCard(intelligence.brand_1, searchedDomain)}
+          ${renderBrandCard(intelligence.brand_2, partnerDomain)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* --- Pitch Modal Open/Close --- */
+
+function openPitchModal(brand, { skipUrlUpdate = false } = {}) {
+  currentPitchBrand = brand;
+
+  // brand1 = searched brand (pitched TO), brand2 = recommended brand (collab WITH)
+  const searchedBrand = currentResults?.searchedBrand;
+  currentPitchBrand1 = searchedBrand?.name || 'Unknown Brand';
+  currentPitchBrand2 = brand.name || 'Unknown Brand';
+
+  console.log(`[PitchModal] Opening — pitching ${currentPitchBrand1} to collab with ${currentPitchBrand2}`);
+
+  // Compute domains for favicons
+  const searchedDomain = extractDomain(searchedBrand?.url || '');
+  const partnerDomain = extractDomain(brand.url || '');
+
+  // Set header with favicon duo + title + subtitle in a row
+  const duoHtml = (searchedDomain && partnerDomain) ? renderFaviconDuo(searchedDomain, partnerDomain) : '';
+  elements.pitchModalSubtitle.innerHTML = `
+    ${duoHtml}
+    <div class="modal-header-labels">
+      <h2 class="modal-title">Create pitch</h2>
+      <p class="modal-subtitle-text">${escapeHtml(currentPitchBrand1)} &times; ${escapeHtml(currentPitchBrand2)}</p>
+    </div>
+  `;
+
+  // Render quick links card for both brands
+  renderQuickLinksCard(searchedBrand, brand);
+
+  // Show modal
+  elements.pitchModalOverlay.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  // Update URL with pitch param
+  if (!skipUrlUpdate) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('pitch', brand.name);
+    history.pushState(null, '', url.toString());
+  }
+
+  // Check pitch cache — if we already generated this pitch, render instantly
+  const cacheKey = `${currentPitchBrand1}|${currentPitchBrand2}`;
+  const cached = pitchCache.get(cacheKey);
+  if (cached) {
+    console.log(`[PitchModal] Cache hit for "${cacheKey}"`);
+    renderPitchResults(cached);
+    return;
+  }
+
+  // No cache — generate fresh
+  triggerPitchGeneration();
+}
+
+function closePitchModal() {
+  const overlay = elements.pitchModalOverlay;
+  const modal = elements.pitchModal;
+
+  // If already hidden or already closing, bail
+  if (overlay.classList.contains('hidden') || overlay.classList.contains('closing')) return;
+
+  // Abort any in-flight generation
+  if (pitchAbortController) {
+    pitchAbortController.abort();
+    pitchAbortController = null;
+  }
+  isPitchGenerating = false;
+
+  // Add closing classes to trigger reverse animations
+  overlay.classList.add('closing');
+  modal.classList.add('closing');
+
+  // Remove pitch param from URL
+  const url = new URL(window.location.href);
+  if (url.searchParams.has('pitch')) {
+    url.searchParams.delete('pitch');
+    history.pushState(null, '', url.toString());
+  }
+
+  // Wait for animation to finish, then actually hide
+  modal.addEventListener('animationend', function onEnd() {
+    modal.removeEventListener('animationend', onEnd);
+    overlay.classList.add('hidden');
+    overlay.classList.remove('closing');
+    modal.classList.remove('closing');
+    document.body.style.overflow = '';
+    currentPitchBrand = null;
+    currentPitchBrand1 = null;
+    currentPitchBrand2 = null;
+  }, { once: true });
+}
+
+function setPitchToolbarState(state) {
+  // state: 'generating' | 'regenerate' | 'hidden'
+  const btn = elements.pitchToolbarBtn;
+  if (!btn) return;
+
+  btn.classList.remove('hidden', 'is-generating');
+
+  if (state === 'generating') {
+    btn.classList.add('is-generating');
+  } else if (state === 'regenerate') {
+    // Default pill button state — no extra class needed
+  } else {
+    btn.classList.add('hidden');
+  }
+}
+
+function cancelPitchGeneration() {
+  console.log('[PitchModal] User cancelled generation');
+  isPitchGenerating = false;
+  if (pitchAbortController) {
+    pitchAbortController.abort();
+    pitchAbortController = null;
+  }
+  setPitchToolbarState('regenerate');
+  renderPitchError('Generation cancelled.');
+}
+
+async function triggerPitchGeneration() {
+  if (!currentPitchBrand1 || !currentPitchBrand2) return;
+
+  // Abort any in-flight generation
+  if (pitchAbortController) {
+    pitchAbortController.abort();
+  }
+  pitchAbortController = new AbortController();
+  isPitchGenerating = true;
+
+  // Show generating state on toolbar button
+  setPitchToolbarState('generating');
+
+  renderPitchLoadingState();
+
+  // Build rich context from existing search results
+  const context = {
+    searchedBrand: currentResults?.searchedBrand || null,
+    recommendedBrand: currentPitchBrand || null
+  };
+
+  try {
+    const result = await generatePitchContent(
+      currentPitchBrand1, currentPitchBrand2, currentPitchModel, context,
+      { signal: pitchAbortController.signal }
+    );
+
+    // If aborted between await and here, bail
+    if (!isPitchGenerating) return;
+
+    isPitchGenerating = false;
+    pitchAbortController = null;
+
+    // Cache the result
+    const cacheKey = `${currentPitchBrand1}|${currentPitchBrand2}`;
+    pitchCache.set(cacheKey, result);
+    console.log(`[PitchModal] Cached pitch for "${cacheKey}"`);
+
+    setPitchToolbarState('regenerate');
+    renderPitchResults(result);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      console.log('[Pitch] Generation aborted by user');
+      return; // cancelPitchGeneration already handled the UI
+    }
+    console.error('[Pitch] Generation failed:', err);
+    isPitchGenerating = false;
+    pitchAbortController = null;
+    setPitchToolbarState('regenerate');
+    renderPitchError(err.message || 'An unexpected error occurred. Please try again.');
   }
 }
 
@@ -2307,39 +3301,42 @@ async function performSearch(url, { fromUrlRestore = false } = {}) {
   const domain = extractDomain(url);
   hideSocialPopover();
 
-  // Restore from cache when refreshing or opening bookmarked URL
-  if (fromUrlRestore) {
-    console.log(`[performSearch] Checking cache for: ${domain}`);
-    const cached = getCachedResults(domain);
-    console.log(`[performSearch] Cache result:`, cached ? `Found (type: ${cached.type}, brands: ${cached.brands?.length}, products: ${cached.products?.length})` : 'Not found');
-    if (cached) {
-      currentSearchId = cached.searchId || generateId();
-      if (cached.type === 'results' && cached.brands && cached.products) {
-        console.log(`[performSearch] Loading from cache: ${cached.brands.length} brands, ${cached.products.length} products`);
-        const searchedBrand = cached.searchedBrand || buildFallbackSearchedBrand(domain);
-        currentResults = { brands: cached.brands, products: cached.products, searchedBrand };
-        renderResults(cached.brands, cached.products, searchedBrand);
-        elements.resultsSearchInput.value = domain;
-        if (elements.resultsTypingPlaceholder) {
-          elements.resultsTypingPlaceholder.classList.add('hidden');
-          elements.resultsTypingPlaceholder.innerHTML = '';
-        }
-        showSection('results');
-        return;
+  // Always check cache first (saves API tokens for repeated searches)
+  console.log(`[performSearch] Checking cache for: ${domain}`);
+  const cached = getCachedResults(domain);
+  console.log(`[performSearch] Cache result:`, cached ? `Found (type: ${cached.type}, brands: ${cached.brands?.length}, products: ${cached.products?.length})` : 'Not found');
+  
+  if (cached) {
+    currentSearchId = cached.searchId || generateId();
+    
+    if (cached.type === 'results' && cached.brands && cached.products) {
+      console.log(`[performSearch] Loading from cache: ${cached.brands.length} brands, ${cached.products.length} products`);
+      const searchedBrand = cached.searchedBrand || buildFallbackSearchedBrand(domain);
+      currentResults = { brands: cached.brands, products: cached.products, searchedBrand };
+      renderResults(cached.brands, cached.products, searchedBrand);
+      elements.resultsSearchInput.value = domain;
+      if (elements.resultsTypingPlaceholder) {
+        elements.resultsTypingPlaceholder.classList.add('hidden');
+        elements.resultsTypingPlaceholder.innerHTML = '';
       }
-      if (cached.type === 'empty') {
-        showSection('empty');
-        return;
-      }
-      if (cached.type === 'error') {
-        elements.errorMessage.textContent = cached.errorMessage || 'Please try again in a moment.';
-        showSection('error');
-        return;
-      }
+      if (!fromUrlRestore) updateUrlForSearch(domain);
+      showSection('results');
+      // Restore pitch modal if pitch param present in URL
+      restorePitchFromUrl();
+      return;
     }
+    
+    if (cached.type === 'empty') {
+      if (!fromUrlRestore) updateUrlForSearch(domain);
+      showSection('empty');
+      return;
+    }
+    
+    // Don't restore error state - allow retry
+    // if (cached.type === 'error') { ... }
   }
 
-  // No cache hit - show loading and fetch from API
+  // No cache hit (or was an error) - show loading and fetch from API
   console.log(`[performSearch] No cache hit - starting fresh search for: ${domain}`);
   if (elements.loadingText) elements.loadingText.textContent = LOADING_MESSAGES[0];
   elements.loadingUrl.textContent = domain;
@@ -2407,6 +3404,8 @@ async function performSearch(url, { fromUrlRestore = false } = {}) {
         if (!fromUrlRestore) updateUrlForSearch(domain);
         showSection('results');
         brandsShown = true;
+        // Restore pitch modal if pitch param present in URL
+        restorePitchFromUrl();
       },
       // Called to update products loading text
       onProductsProgress: (msg) => {
@@ -2649,8 +3648,33 @@ function initEventListeners() {
       return;
     }
 
-    // Handle card click (open URL)
-    if (card && !e.target.closest('.card-menu-btn')) {
+    // Handle generate pitch button click
+    const generatePitchBtn = e.target.closest('.generate-pitch-btn');
+    if (generatePitchBtn) {
+      e.stopPropagation();
+      try {
+        const wrapper = generatePitchBtn.closest('.generate-pitch-wrapper');
+        const brandData = JSON.parse(decodeURIComponent(wrapper.dataset.brand));
+        openPitchModal(brandData);
+      } catch (err) {
+        console.error('[PitchModal] Failed to parse brand data:', err);
+      }
+      return;
+    }
+
+    // Handle visit button click
+    const visitBtn = e.target.closest('.visit-btn');
+    if (visitBtn) {
+      e.stopPropagation();
+      const url = visitBtn.dataset.url;
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+      return;
+    }
+
+    // Handle card click (open URL) - but not if clicking buttons
+    if (card && !e.target.closest('.card-menu-btn') && !e.target.closest('.card-actions')) {
       const url = card.dataset.url;
       if (url) {
         window.open(url, '_blank', 'noopener,noreferrer');
@@ -2718,8 +3742,73 @@ function initEventListeners() {
     if (e.key === 'Escape') {
       hideSocialPopover();
       hideAllSearchHistoryDropdowns();
+      closePitchModal();
     }
   });
+
+  // Pitch modal close button
+  if (elements.pitchModalClose) {
+    elements.pitchModalClose.addEventListener('click', closePitchModal);
+  }
+
+  // Close pitch modal when clicking overlay (outside modal)
+  if (elements.pitchModalOverlay) {
+    elements.pitchModalOverlay.addEventListener('click', (e) => {
+      if (e.target === elements.pitchModalOverlay) {
+        closePitchModal();
+      }
+    });
+  }
+
+  // Pitch modal — delegated event listeners for dynamic content
+  if (elements.pitchModalBody) {
+    elements.pitchModalBody.addEventListener('click', (e) => {
+      // Generate pitch button
+      const generateBtn = e.target.closest('#pitchGenerateBtn');
+      if (generateBtn) {
+        triggerPitchGeneration();
+        return;
+      }
+
+      // Try again button (error state) — re-trigger generation
+      const tryAgainBtn = e.target.closest('#pitchTryAgainBtn');
+      if (tryAgainBtn) {
+        triggerPitchGeneration();
+        return;
+      }
+
+      // Copy button
+      const copyBtn = e.target.closest('.pitch-copy-btn');
+      if (copyBtn) {
+        const targetId = copyBtn.dataset.copyTarget;
+        if (targetId) {
+          copyPitchMessage(targetId, copyBtn);
+        }
+        return;
+      }
+
+      // Collapsible section toggle
+      const sectionHeader = e.target.closest('.pitch-section-header');
+      if (sectionHeader) {
+        const section = sectionHeader.closest('.pitch-section');
+        if (section) {
+          section.classList.toggle('collapsed');
+        }
+        return;
+      }
+    });
+  }
+
+  // Pitch toolbar button — toggles between stop (during generation) and regenerate
+  if (elements.pitchToolbarBtn) {
+    elements.pitchToolbarBtn.addEventListener('click', () => {
+      if (isPitchGenerating) {
+        cancelPitchGeneration();
+      } else {
+        triggerPitchGeneration();
+      }
+    });
+  }
 }
 
 /* --------------------------------------------------------------------------
@@ -2751,9 +3840,34 @@ function init() {
   // Sync UI when user uses browser back/forward
   window.addEventListener('popstate', () => {
     const q = getSearchFromUrl();
+    const pitchParam = getPitchFromUrl();
+
+    // Handle pitch modal state
+    if (!pitchParam && currentPitchBrand) {
+      // Pitch param removed (user went back) — close modal without pushing state
+      const overlay = elements.pitchModalOverlay;
+      const modal = elements.pitchModal;
+      if (!overlay.classList.contains('hidden')) {
+        overlay.classList.add('closing');
+        modal.classList.add('closing');
+        modal.addEventListener('animationend', function onEnd() {
+          modal.removeEventListener('animationend', onEnd);
+          overlay.classList.add('hidden');
+          overlay.classList.remove('closing');
+          modal.classList.remove('closing');
+          document.body.style.overflow = '';
+          currentPitchBrand = null;
+          currentPitchBrand1 = null;
+          currentPitchBrand2 = null;
+        }, { once: true });
+      }
+    } else if (pitchParam && currentResults?.brands) {
+      restorePitchFromUrl();
+    }
+
     if (q && isValidUrl(q)) {
       performSearch(q, { fromUrlRestore: true });
-    } else {
+    } else if (!q) {
       showSection('landing');
       elements.searchInput?.focus();
     }
