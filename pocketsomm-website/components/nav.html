@@ -1,0 +1,49 @@
+<!-- ====================================================================
+     PocketSomm - Reusable Navigation Component
+
+     Usage: Include this file in any page. Requires:
+     - css/tailwind-utilities.css
+     - css/styles.css
+     - js/main.js (for mobile menu toggle and scroll behavior)
+
+     The navigation is fully responsive:
+     - Mobile: Hamburger menu with fullscreen overlay
+     - Desktop (1024px+): Horizontal nav links with CTA button
+     ==================================================================== -->
+
+<nav class="nav" id="nav">
+  <div class="nav__inner">
+    <!-- Logo -->
+    <a href="/" class="nav__logo">
+      <span class="nav__logo-icon">🍷</span>
+      PocketSomm
+    </a>
+
+    <!-- Desktop Navigation Links -->
+    <ul class="nav__links">
+      <li><a href="/#features" class="nav__link">Features</a></li>
+      <li><a href="/#how-it-works" class="nav__link">How It Works</a></li>
+      <li><a href="/#discover" class="nav__link">Discover</a></li>
+      <li><a href="/#testimonials" class="nav__link">Reviews</a></li>
+    </ul>
+
+    <!-- Actions -->
+    <div class="nav__actions">
+      <a href="/#waitlist" class="nav__cta">Join Waitlist</a>
+      <button class="nav__toggle" aria-label="Toggle navigation menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Mobile Menu Overlay -->
+  <div class="nav__mobile">
+    <a href="/#features" class="nav__mobile-link">Features</a>
+    <a href="/#how-it-works" class="nav__mobile-link">How It Works</a>
+    <a href="/#discover" class="nav__mobile-link">Discover</a>
+    <a href="/#testimonials" class="nav__mobile-link">Reviews</a>
+    <a href="/#waitlist" class="nav__mobile-cta">Join Waitlist</a>
+  </div>
+</nav>

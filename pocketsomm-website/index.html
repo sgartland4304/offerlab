@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PocketSomm - Your personal AI sommelier. Scan any wine list, get personalized recommendations that match your taste and budget.">
+  <meta name="theme-color" content="#0a0a0c">
+  <title>PocketSomm — Your AI Sommelier</title>
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- Fonts - Inter (same as Shopify Polaris) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/tailwind-utilities.css">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Favicon placeholder -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍷</text></svg>">
+</head>
+<body>
+
+  <!-- ====================================================================
+       NAVIGATION (Reusable Component)
+       ==================================================================== -->
+  <nav class="nav" id="nav">
+    <div class="nav__inner">
+      <a href="/" class="nav__logo">
+        <span class="nav__logo-icon">🍷</span>
+        PocketSomm
+      </a>
+
+      <ul class="nav__links">
+        <li><a href="#features" class="nav__link">Features</a></li>
+        <li><a href="#how-it-works" class="nav__link">How It Works</a></li>
+        <li><a href="#discover" class="nav__link">Discover</a></li>
+        <li><a href="#testimonials" class="nav__link">Reviews</a></li>
+      </ul>
+
+      <div class="nav__actions">
+        <a href="#waitlist" class="nav__cta">Join Waitlist</a>
+        <button class="nav__toggle" aria-label="Toggle menu">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div class="nav__mobile">
+      <a href="#features" class="nav__mobile-link">Features</a>
+      <a href="#how-it-works" class="nav__mobile-link">How It Works</a>
+      <a href="#discover" class="nav__mobile-link">Discover</a>
+      <a href="#testimonials" class="nav__mobile-link">Reviews</a>
+      <a href="#waitlist" class="nav__mobile-cta">Join Waitlist</a>
+    </div>
+  </nav>
+
+
+  <!-- ====================================================================
+       HERO SECTION
+       ==================================================================== -->
+  <section class="hero" id="hero">
+    <!-- 3D Textured Background -->
+    <div class="hero__bg">
+      <div class="hero__bg-gradient"></div>
+      <div class="hero__bg-noise"></div>
+      <div class="hero__bg-orb hero__bg-orb--1"></div>
+      <div class="hero__bg-orb hero__bg-orb--2"></div>
+      <div class="hero__bg-orb hero__bg-orb--3"></div>
+      <div class="hero__bg-grid"></div>
+    </div>
+
+    <div class="hero__content">
+      <!-- Badge -->
+      <div class="hero__badge">
+        <span class="hero__badge-dot"></span>
+        Now accepting early access
+      </div>
+
+      <!-- Title -->
+      <h1 class="hero__title">
+        <span class="hero__title-gradient">Your Personal<br>AI Sommelier</span>
+      </h1>
+
+      <!-- Subtitle -->
+      <p class="hero__subtitle">
+        Scan any wine list. Get instant, personalized recommendations that match your taste profile and budget. Never second-guess your wine order again.
+      </p>
+
+      <!-- CTAs -->
+      <div class="hero__actions">
+        <a href="#waitlist" class="btn btn--primary btn--large">
+          Join the Waitlist
+          <span class="btn__icon">→</span>
+        </a>
+        <a href="#how-it-works" class="btn btn--secondary btn--large">
+          See How It Works
+        </a>
+      </div>
+
+      <!-- Hero Phone Mockup -->
+      <div class="hero__phone-wrapper" data-parallax="-0.05">
+        <div class="hero__phone-glow"></div>
+        <div class="phone-frame float-animation">
+          <div class="phone-frame__device">
+            <div class="phone-frame__notch"></div>
+            <div class="phone-frame__screen">
+              <div class="phone-frame__placeholder">
+                <!-- Scan Screen Mockup -->
+                <div class="mock-screen">
+                  <div class="mock-screen__status-bar">
+                    <span>9:41</span>
+                    <span>●●●</span>
+                  </div>
+                  <div class="mock-screen__header">
+                    <span class="mock-screen__header-title">Scan Menu</span>
+                    <span style="font-size:20px;">📸</span>
+                  </div>
+                  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+                    <div style="width:180px;height:180px;border-radius:24px;border:2px dashed rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.02);">
+                      <div style="text-align:center;">
+                        <div style="font-size:40px;margin-bottom:8px;">📋</div>
+                        <div style="font-size:12px;color:rgba(255,255,255,0.4);">Point at wine list</div>
+                      </div>
+                    </div>
+                    <div style="width:140px;padding:12px;background:linear-gradient(135deg,rgba(175,29,67,0.3),rgba(109,46,70,0.3));border-radius:30px;text-align:center;font-size:13px;font-weight:600;color:#fff;">
+                      Scan Now
+                    </div>
+                  </div>
+                  <div class="mock-tab-bar">
+                    <div class="mock-tab mock-tab--active">
+                      <span class="mock-tab__icon">📷</span>
+                      <span>Scan</span>
+                    </div>
+                    <div class="mock-tab">
+                      <span class="mock-tab__icon">🍷</span>
+                      <span>Cellar</span>
+                    </div>
+                    <div class="mock-tab">
+                      <span class="mock-tab__icon">👤</span>
+                      <span>Profile</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       SOCIAL PROOF MARQUEE
+       ==================================================================== -->
+  <div class="section--darker py-8">
+    <div class="marquee">
+      <div class="marquee__content">
+        <span class="marquee__item">Powered by AI</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">10,000+ Wine Database</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Sommelier Verified</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Personalized Taste Profiles</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Budget Smart</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Scan Any Menu</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Social Sharing</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Instant Recommendations</span>
+        <span class="marquee__item">·</span>
+      </div>
+      <div class="marquee__content" aria-hidden="true">
+        <span class="marquee__item">Powered by AI</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">10,000+ Wine Database</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Sommelier Verified</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Personalized Taste Profiles</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Budget Smart</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Scan Any Menu</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Social Sharing</span>
+        <span class="marquee__item">·</span>
+        <span class="marquee__item">Instant Recommendations</span>
+        <span class="marquee__item">·</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ====================================================================
+       FEATURE 1: SCAN & DISCOVER
+       ==================================================================== -->
+  <section class="section section--dark" id="features">
+    <div class="container">
+      <div class="feature-row">
+        <!-- Content -->
+        <div class="feature-row__content reveal--left">
+          <span class="feature-row__label">⚡ Instant Recognition</span>
+          <h2 class="feature-row__title">Scan. Discover.<br>Drink Better.</h2>
+          <p class="feature-row__description">
+            Point your camera at any wine list or menu. Our AI reads it instantly, cross-references 10,000+ wines, and surfaces the perfect picks for you.
+          </p>
+          <ul class="feature-row__list">
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Reads handwritten and printed menus with 99% accuracy</span>
+            </li>
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Results in under 2 seconds — faster than asking the server</span>
+            </li>
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Works with wine lists, retail shelves, and bottle labels</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Visual: Phone in 3D panel -->
+        <div class="feature-row__visual reveal--right">
+          <div class="visual-panel">
+            <div class="visual-panel__bg visual-panel__bg--wine">
+              <div class="visual-panel__noise"></div>
+            </div>
+            <div class="visual-panel__particles">
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+            </div>
+            <div class="phone-frame float-animation" data-parallax="-0.03" style="position:relative;z-index:2;">
+              <div class="phone-frame__device">
+                <div class="phone-frame__notch"></div>
+                <div class="phone-frame__screen">
+                  <div class="phone-frame__placeholder">
+                    <div class="mock-screen">
+                      <div class="mock-screen__status-bar">
+                        <span>9:41</span>
+                        <span>●●●</span>
+                      </div>
+                      <div class="mock-screen__header">
+                        <span class="mock-screen__header-title">Scanning...</span>
+                        <span style="font-size:20px;">✨</span>
+                      </div>
+                      <!-- Simulated scan results -->
+                      <div style="padding:0 2px;">
+                        <div style="padding:10px 14px;background:linear-gradient(135deg,rgba(175,29,67,0.2),rgba(109,46,70,0.15));border:1px solid rgba(175,29,67,0.2);border-radius:14px;margin-bottom:10px;">
+                          <div style="font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Top Pick for You</div>
+                          <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#5c1a2a,#8b2d44);display:flex;align-items:center;justify-content:center;font-size:18px;">🍷</div>
+                            <div style="flex:1;">
+                              <div style="font-size:13px;font-weight:600;color:#fff;">Château Margaux 2018</div>
+                              <div style="font-size:11px;color:rgba(255,255,255,0.4);">Bordeaux, France · Full-bodied</div>
+                            </div>
+                            <div style="padding:4px 10px;background:rgba(175,29,67,0.2);border-radius:20px;font-size:11px;color:var(--color-burgundy-300);font-weight:600;">98%</div>
+                          </div>
+                        </div>
+
+                        <div class="mock-card">
+                          <div class="mock-card__row">
+                            <div class="mock-card__color-dot" style="background:linear-gradient(135deg,#4a1a2a,#6b2d3a);display:flex;align-items:center;justify-content:center;font-size:18px;">🍷</div>
+                            <div class="mock-card__text">
+                              <div class="mock-card__title">Opus One 2019</div>
+                              <div class="mock-card__subtitle">Napa Valley · Rich & Velvety</div>
+                            </div>
+                            <div class="mock-card__badge" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);">94%</div>
+                          </div>
+                        </div>
+
+                        <div class="mock-card">
+                          <div class="mock-card__row">
+                            <div class="mock-card__color-dot" style="background:linear-gradient(135deg,#2a1a15,#4a2d20);display:flex;align-items:center;justify-content:center;font-size:18px;">🥂</div>
+                            <div class="mock-card__text">
+                              <div class="mock-card__title">Penfolds Bin 389</div>
+                              <div class="mock-card__subtitle">South Australia · Medium</div>
+                            </div>
+                            <div class="mock-card__badge" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);">91%</div>
+                          </div>
+                        </div>
+
+                        <div class="mock-card">
+                          <div class="mock-card__row">
+                            <div class="mock-card__color-dot" style="background:linear-gradient(135deg,#1a1a2a,#2d2d4a);display:flex;align-items:center;justify-content:center;font-size:18px;">🍷</div>
+                            <div class="mock-card__text">
+                              <div class="mock-card__title">Cloudy Bay Sauv Blanc</div>
+                              <div class="mock-card__subtitle">Marlborough · Crisp & Fresh</div>
+                            </div>
+                            <div class="mock-card__badge" style="background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);">88%</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="mock-tab-bar">
+                        <div class="mock-tab mock-tab--active">
+                          <span class="mock-tab__icon">📷</span>
+                          <span>Scan</span>
+                        </div>
+                        <div class="mock-tab">
+                          <span class="mock-tab__icon">🍷</span>
+                          <span>Cellar</span>
+                        </div>
+                        <div class="mock-tab">
+                          <span class="mock-tab__icon">👤</span>
+                          <span>Profile</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       FEATURE 2: AI RECOMMENDATIONS
+       ==================================================================== -->
+  <section class="section section--gradient-wine">
+    <div class="container">
+      <div class="feature-row feature-row--reverse">
+        <!-- Content -->
+        <div class="feature-row__content reveal--right">
+          <span class="feature-row__label">🧠 AI-Powered</span>
+          <h2 class="feature-row__title">Recommendations<br>That Actually<br>Get You.</h2>
+          <p class="feature-row__description">
+            Not generic ratings. Not crowd favorites. PocketSomm learns your unique palate — what you love, what you avoid, and what you're curious about.
+          </p>
+          <ul class="feature-row__list">
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Evolving taste profile that gets smarter with every pour</span>
+            </li>
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Flavor notes, body, tannin, acidity — mapped to your preferences</span>
+            </li>
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Sommelier-verified reviews on mid-market and affordable wines</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Visual -->
+        <div class="feature-row__visual reveal--left">
+          <div class="visual-panel">
+            <div class="visual-panel__bg visual-panel__bg--mesh">
+              <div class="visual-panel__noise"></div>
+            </div>
+            <div class="visual-panel__particles">
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+            </div>
+            <div class="phone-frame float-animation" data-parallax="-0.03" style="position:relative;z-index:2;">
+              <div class="phone-frame__device">
+                <div class="phone-frame__notch"></div>
+                <div class="phone-frame__screen">
+                  <div class="phone-frame__placeholder" style="background:linear-gradient(180deg,#160d14 0%,#0c080b 100%);">
+                    <div class="mock-screen">
+                      <div class="mock-screen__status-bar">
+                        <span>9:41</span>
+                        <span>●●●</span>
+                      </div>
+                      <div class="mock-screen__header">
+                        <span class="mock-screen__header-title">Your Taste</span>
+                        <span style="font-size:20px;">🎯</span>
+                      </div>
+
+                      <!-- Taste Profile Visualization -->
+                      <div style="text-align:center;padding:8px 0 12px;">
+                        <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:12px;">Palate Profile</div>
+                        <!-- Radar chart placeholder -->
+                        <div style="width:160px;height:160px;margin:0 auto;position:relative;">
+                          <svg viewBox="0 0 160 160" style="width:100%;height:100%;">
+                            <!-- Background hexagon -->
+                            <polygon points="80,10 143,42 143,106 80,138 17,106 17,42" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+                            <polygon points="80,30 126,52 126,96 80,118 34,96 34,52" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+                            <polygon points="80,50 109,62 109,86 80,98 51,86 51,62" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="1"/>
+                            <!-- Data polygon -->
+                            <polygon points="80,18 138,55 125,108 55,125 22,68 52,35" fill="rgba(175,29,67,0.15)" stroke="rgba(175,29,67,0.5)" stroke-width="1.5"/>
+                            <!-- Data points -->
+                            <circle cx="80" cy="18" r="3" fill="#af1d43"/>
+                            <circle cx="138" cy="55" r="3" fill="#af1d43"/>
+                            <circle cx="125" cy="108" r="3" fill="#af1d43"/>
+                            <circle cx="55" cy="125" r="3" fill="#af1d43"/>
+                            <circle cx="22" cy="68" r="3" fill="#af1d43"/>
+                            <circle cx="52" cy="35" r="3" fill="#af1d43"/>
+                          </svg>
+                          <!-- Labels -->
+                          <div style="position:absolute;top:-2px;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,0.5);">Bold</div>
+                          <div style="position:absolute;top:22%;right:-8px;font-size:9px;color:rgba(255,255,255,0.5);">Tannic</div>
+                          <div style="position:absolute;bottom:18%;right:-8px;font-size:9px;color:rgba(255,255,255,0.5);">Oaky</div>
+                          <div style="position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);font-size:9px;color:rgba(255,255,255,0.5);">Sweet</div>
+                          <div style="position:absolute;bottom:18%;left:-12px;font-size:9px;color:rgba(255,255,255,0.5);">Fruity</div>
+                          <div style="position:absolute;top:22%;left:-10px;font-size:9px;color:rgba(255,255,255,0.5);">Acidic</div>
+                        </div>
+                      </div>
+
+                      <!-- Preference pills -->
+                      <div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 0;">
+                        <span style="padding:5px 12px;background:rgba(175,29,67,0.15);border:1px solid rgba(175,29,67,0.25);border-radius:20px;font-size:11px;color:rgba(255,255,255,0.7);">🍇 Full-bodied Reds</span>
+                        <span style="padding:5px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;font-size:11px;color:rgba(255,255,255,0.5);">🥂 Dry Whites</span>
+                        <span style="padding:5px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;font-size:11px;color:rgba(255,255,255,0.5);">🌍 Old World</span>
+                        <span style="padding:5px 12px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;font-size:11px;color:rgba(255,255,255,0.5);">💰 $$</span>
+                      </div>
+
+                      <div class="mock-tab-bar">
+                        <div class="mock-tab">
+                          <span class="mock-tab__icon">📷</span>
+                          <span>Scan</span>
+                        </div>
+                        <div class="mock-tab">
+                          <span class="mock-tab__icon">🍷</span>
+                          <span>Cellar</span>
+                        </div>
+                        <div class="mock-tab mock-tab--active">
+                          <span class="mock-tab__icon">👤</span>
+                          <span>Profile</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       FEATURE 3: BUDGET SMART
+       ==================================================================== -->
+  <section class="section section--dark">
+    <div class="container">
+      <div class="feature-row">
+        <!-- Content -->
+        <div class="feature-row__content reveal--left">
+          <span class="feature-row__label">💰 Budget Aware</span>
+          <h2 class="feature-row__title">Great Wine<br>Doesn't Need<br>a Big Budget.</h2>
+          <p class="feature-row__description">
+            Set your price range and PocketSomm finds the hidden gems. We specialize in surfacing incredible wines at every price point — especially the ones you'd normally walk right past.
+          </p>
+          <ul class="feature-row__list">
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Value scoring highlights the best quality-to-price ratio</span>
+            </li>
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Never overpay for a bottle that doesn't match your taste</span>
+            </li>
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Focus on mid-market wines that punch way above their weight</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Visual -->
+        <div class="feature-row__visual reveal--right">
+          <div class="visual-panel">
+            <div class="visual-panel__bg visual-panel__bg--gold">
+              <div class="visual-panel__noise"></div>
+            </div>
+            <div class="visual-panel__particles">
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+            </div>
+            <div class="phone-frame float-animation" data-parallax="-0.03" style="position:relative;z-index:2;">
+              <div class="phone-frame__device">
+                <div class="phone-frame__notch"></div>
+                <div class="phone-frame__screen">
+                  <div class="phone-frame__placeholder" style="background:linear-gradient(180deg,#15120d 0%,#0c0a07 100%);">
+                    <div class="mock-screen">
+                      <div class="mock-screen__status-bar">
+                        <span>9:41</span>
+                        <span>●●●</span>
+                      </div>
+                      <div class="mock-screen__header">
+                        <span class="mock-screen__header-title">Smart Picks</span>
+                        <span style="font-size:20px;">💎</span>
+                      </div>
+
+                      <!-- Budget filter -->
+                      <div style="display:flex;gap:6px;margin-bottom:12px;">
+                        <span style="padding:6px 14px;background:rgba(236,191,54,0.15);border:1px solid rgba(236,191,54,0.25);border-radius:20px;font-size:11px;color:var(--color-gold-300);font-weight:600;">$20-40</span>
+                        <span style="padding:6px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;font-size:11px;color:rgba(255,255,255,0.5);">$40-80</span>
+                        <span style="padding:6px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:20px;font-size:11px;color:rgba(255,255,255,0.5);">$80+</span>
+                      </div>
+
+                      <!-- Value pick cards -->
+                      <div style="padding:12px;background:linear-gradient(135deg,rgba(236,191,54,0.08),rgba(199,133,23,0.05));border:1px solid rgba(236,191,54,0.12);border-radius:14px;margin-bottom:10px;">
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                          <span style="font-size:12px;">⭐</span>
+                          <span style="font-size:10px;color:var(--color-gold-300);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Best Value</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                          <div style="width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,#3a2a15,#5a4020);display:flex;align-items:center;justify-content:center;font-size:18px;">🍷</div>
+                          <div style="flex:1;">
+                            <div style="font-size:13px;font-weight:600;color:#fff;">Malbec Reserva 2020</div>
+                            <div style="font-size:11px;color:rgba(255,255,255,0.4);">Mendoza, Argentina</div>
+                          </div>
+                          <div style="text-align:right;">
+                            <div style="font-size:14px;font-weight:700;color:var(--color-gold-300);">$28</div>
+                            <div style="font-size:10px;color:rgba(255,255,255,0.3);">96% match</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="mock-card">
+                        <div class="mock-card__row">
+                          <div class="mock-card__color-dot" style="background:linear-gradient(135deg,#2a1520,#4a2535);display:flex;align-items:center;justify-content:center;font-size:18px;">🍷</div>
+                          <div class="mock-card__text">
+                            <div class="mock-card__title">Côtes du Rhône 2021</div>
+                            <div class="mock-card__subtitle">Rhône Valley, France</div>
+                          </div>
+                          <div style="text-align:right;">
+                            <div style="font-size:13px;font-weight:600;color:#fff;">$24</div>
+                            <div style="font-size:10px;color:rgba(255,255,255,0.3);">93%</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="mock-card">
+                        <div class="mock-card__row">
+                          <div class="mock-card__color-dot" style="background:linear-gradient(135deg,#1a2015,#2a3520);display:flex;align-items:center;justify-content:center;font-size:18px;">🥂</div>
+                          <div class="mock-card__text">
+                            <div class="mock-card__title">Grüner Veltliner 2022</div>
+                            <div class="mock-card__subtitle">Wachau, Austria</div>
+                          </div>
+                          <div style="text-align:right;">
+                            <div style="font-size:13px;font-weight:600;color:#fff;">$22</div>
+                            <div style="font-size:10px;color:rgba(255,255,255,0.3);">90%</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="mock-tab-bar">
+                        <div class="mock-tab">
+                          <span class="mock-tab__icon">📷</span>
+                          <span>Scan</span>
+                        </div>
+                        <div class="mock-tab mock-tab--active">
+                          <span class="mock-tab__icon">🍷</span>
+                          <span>Cellar</span>
+                        </div>
+                        <div class="mock-tab">
+                          <span class="mock-tab__icon">👤</span>
+                          <span>Profile</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       FEATURE 4: SOCIAL & SHARING
+       ==================================================================== -->
+  <section class="section section--gradient-gold" id="discover">
+    <div class="container">
+      <div class="feature-row feature-row--reverse">
+        <!-- Content -->
+        <div class="feature-row__content reveal--right">
+          <span class="feature-row__label">👥 Social Discovery</span>
+          <h2 class="feature-row__title">Wine Is Better<br>Together.</h2>
+          <p class="feature-row__description">
+            Combine taste profiles with friends to find the wine everyone will love. Share discoveries, build collaborative wishlists, and make group ordering effortless.
+          </p>
+          <ul class="feature-row__list">
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Group taste matching — one scan, everyone's preferences considered</span>
+            </li>
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Share your favorite finds with a single tap</span>
+            </li>
+            <li class="feature-row__list-item">
+              <span class="feature-row__list-icon">✓</span>
+              <span>Build a shared wine journal with friends and family</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Visual -->
+        <div class="feature-row__visual reveal--left">
+          <div class="visual-panel">
+            <div class="visual-panel__bg visual-panel__bg--dark">
+              <div class="visual-panel__noise"></div>
+            </div>
+            <div class="visual-panel__particles">
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+              <span class="visual-panel__particle"></span>
+            </div>
+            <div class="phone-frame float-animation" data-parallax="-0.03" style="position:relative;z-index:2;">
+              <div class="phone-frame__device">
+                <div class="phone-frame__notch"></div>
+                <div class="phone-frame__screen">
+                  <div class="phone-frame__placeholder" style="background:linear-gradient(180deg,#101218 0%,#08090c 100%);">
+                    <div class="mock-screen">
+                      <div class="mock-screen__status-bar">
+                        <span>9:41</span>
+                        <span>●●●</span>
+                      </div>
+                      <div class="mock-screen__header">
+                        <span class="mock-screen__header-title">Group Match</span>
+                        <span style="font-size:20px;">🤝</span>
+                      </div>
+
+                      <!-- Group avatars -->
+                      <div style="display:flex;align-items:center;gap:-8px;margin-bottom:16px;">
+                        <div style="display:flex;">
+                          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#af1d43,#6d2e46);border:2px solid #101218;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">S</div>
+                          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2d4a3f,#1a3028);border:2px solid #101218;margin-left:-10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">M</div>
+                          <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#4a3a2d,#2d2018);border:2px solid #101218;margin-left:-10px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;">J</div>
+                          <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.06);border:2px solid #101218;margin-left:-10px;display:flex;align-items:center;justify-content:center;font-size:14px;color:rgba(255,255,255,0.4);">+2</div>
+                        </div>
+                        <div style="margin-left:12px;font-size:12px;color:rgba(255,255,255,0.5);">5 palates combined</div>
+                      </div>
+
+                      <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:8px;">Everyone will love:</div>
+
+                      <!-- Group recommendation -->
+                      <div style="padding:12px;background:linear-gradient(135deg,rgba(100,100,120,0.1),rgba(60,60,80,0.08));border:1px solid rgba(255,255,255,0.08);border-radius:14px;margin-bottom:10px;">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                          <div style="font-size:24px;">🍷</div>
+                          <div>
+                            <div style="font-size:14px;font-weight:600;color:#fff;">Barolo Riserva 2017</div>
+                            <div style="font-size:11px;color:rgba(255,255,255,0.4);">Piedmont, Italy · $52</div>
+                          </div>
+                        </div>
+                        <!-- Match bars -->
+                        <div style="display:flex;flex-direction:column;gap:4px;font-size:10px;">
+                          <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="width:16px;text-align:center;color:rgba(255,255,255,0.4);">S</span>
+                            <div style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;"><div style="width:95%;height:100%;background:var(--color-burgundy-600);border-radius:2px;"></div></div>
+                            <span style="color:rgba(255,255,255,0.5);">95%</span>
+                          </div>
+                          <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="width:16px;text-align:center;color:rgba(255,255,255,0.4);">M</span>
+                            <div style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;"><div style="width:88%;height:100%;background:var(--color-burgundy-600);border-radius:2px;"></div></div>
+                            <span style="color:rgba(255,255,255,0.5);">88%</span>
+                          </div>
+                          <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="width:16px;text-align:center;color:rgba(255,255,255,0.4);">J</span>
+                            <div style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;"><div style="width:91%;height:100%;background:var(--color-burgundy-600);border-radius:2px;"></div></div>
+                            <span style="color:rgba(255,255,255,0.5);">91%</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style="text-align:center;padding:10px;background:rgba(255,255,255,0.04);border-radius:12px;font-size:12px;color:rgba(255,255,255,0.5);">
+                        Share picks with group →
+                      </div>
+
+                      <div class="mock-tab-bar">
+                        <div class="mock-tab">
+                          <span class="mock-tab__icon">📷</span>
+                          <span>Scan</span>
+                        </div>
+                        <div class="mock-tab mock-tab--active">
+                          <span class="mock-tab__icon">🍷</span>
+                          <span>Cellar</span>
+                        </div>
+                        <div class="mock-tab">
+                          <span class="mock-tab__icon">👤</span>
+                          <span>Profile</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       STATS SECTION
+       ==================================================================== -->
+  <section class="section section--darker">
+    <div class="container">
+      <div class="divider mb-16"></div>
+      <div class="stats reveal-stagger">
+        <div class="stat">
+          <div class="stat__number" data-count="10000" data-suffix="+">0</div>
+          <div class="stat__label">Wines in Database</div>
+        </div>
+        <div class="stat">
+          <div class="stat__number" data-count="99" data-suffix="%">0</div>
+          <div class="stat__label">Scan Accuracy</div>
+        </div>
+        <div class="stat">
+          <div class="stat__number" data-count="2" data-prefix="<" data-suffix="s">0</div>
+          <div class="stat__label">Recommendation Speed</div>
+        </div>
+        <div class="stat">
+          <div class="stat__number" data-count="50" data-suffix="+">0</div>
+          <div class="stat__label">Certified Sommeliers</div>
+        </div>
+      </div>
+      <div class="divider mt-16"></div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       HOW IT WORKS
+       ==================================================================== -->
+  <section class="section section--dark" id="how-it-works">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__label">How It Works</span>
+        <h2 class="section__title">Three Steps to<br>Your Perfect Glass</h2>
+        <p class="section__description">
+          From menu to glass in seconds. No wine knowledge required — we bring the sommelier to you.
+        </p>
+      </div>
+
+      <div class="steps reveal-stagger">
+        <div class="step">
+          <div class="step__number">1</div>
+          <h3 class="step__title">Scan the Menu</h3>
+          <p class="step__description">
+            Open PocketSomm and point your camera at any wine list, restaurant menu, or bottle label.
+          </p>
+          <div class="step__visual">
+            <div style="width:80px;height:80px;background:rgba(175,29,67,0.1);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;">📸</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step__number">2</div>
+          <h3 class="step__title">Get Your Picks</h3>
+          <p class="step__description">
+            AI analyzes every wine against your taste profile and budget, ranking them by your perfect match score.
+          </p>
+          <div class="step__visual">
+            <div style="width:80px;height:80px;background:rgba(175,29,67,0.1);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;">✨</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step__number">3</div>
+          <h3 class="step__title">Order & Enjoy</h3>
+          <p class="step__description">
+            Confidently order the wine you'll love. Rate it afterward to make future picks even better.
+          </p>
+          <div class="step__visual">
+            <div style="width:80px;height:80px;background:rgba(175,29,67,0.1);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;">🍷</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       FEATURE CARDS GRID
+       ==================================================================== -->
+  <section class="section section--gradient-wine">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__label">Everything You Need</span>
+        <h2 class="section__title">Built for Wine Lovers,<br>by Wine Lovers</h2>
+        <p class="section__description">
+          Every feature designed to make your wine experience more confident, more enjoyable, and more social.
+        </p>
+      </div>
+
+      <div class="feature-grid reveal-stagger">
+        <div class="feature-card shimmer-effect">
+          <div class="feature-card__icon">📋</div>
+          <h3 class="feature-card__title">Menu Scanning</h3>
+          <p class="feature-card__text">Instantly digitize any wine list with AI-powered OCR. Works with handwritten, printed, and multilingual menus.</p>
+        </div>
+
+        <div class="feature-card shimmer-effect">
+          <div class="feature-card__icon">🧠</div>
+          <h3 class="feature-card__title">Smart Matching</h3>
+          <p class="feature-card__text">Our algorithm maps 30+ flavor dimensions to your palate, getting smarter with every wine you rate.</p>
+        </div>
+
+        <div class="feature-card shimmer-effect">
+          <div class="feature-card__icon">💰</div>
+          <h3 class="feature-card__title">Value Finder</h3>
+          <p class="feature-card__text">Proprietary value scoring identifies wines with the highest quality-to-price ratio on any list.</p>
+        </div>
+
+        <div class="feature-card shimmer-effect">
+          <div class="feature-card__icon">👥</div>
+          <h3 class="feature-card__title">Group Mode</h3>
+          <p class="feature-card__text">Combine multiple taste profiles for the table. Find the one bottle that makes everyone happy.</p>
+        </div>
+
+        <div class="feature-card shimmer-effect">
+          <div class="feature-card__icon">📓</div>
+          <h3 class="feature-card__title">Wine Journal</h3>
+          <p class="feature-card__text">Track every bottle, tasting note, and rating. Build your personal wine library over time.</p>
+        </div>
+
+        <div class="feature-card shimmer-effect">
+          <div class="feature-card__icon">🏅</div>
+          <h3 class="feature-card__title">Somm Reviews</h3>
+          <p class="feature-card__text">Professional sommelier reviews on thousands of wines, with a special focus on accessible, mid-market gems.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       TESTIMONIALS
+       ==================================================================== -->
+  <section class="section section--dark" id="testimonials">
+    <div class="container">
+      <div class="section__header reveal">
+        <span class="section__label">Early Access Reviews</span>
+        <h2 class="section__title">What Wine Lovers<br>Are Saying</h2>
+        <p class="section__description">
+          From first-time wine drinkers to seasoned collectors, PocketSomm is changing how people discover wine.
+        </p>
+      </div>
+
+      <div class="testimonials-track reveal">
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">★★★★★</div>
+          <p class="testimonial-card__quote">"I used to panic looking at wine lists. Now I pull out my phone, scan, and order with total confidence. It's like having a friend who knows everything about wine."</p>
+          <div class="testimonial-card__author">
+            <div class="testimonial-card__avatar">A</div>
+            <div>
+              <div class="testimonial-card__name">Alex M.</div>
+              <div class="testimonial-card__role">Early Access Member</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">★★★★★</div>
+          <p class="testimonial-card__quote">"The budget feature is a game-changer. Found a $25 Malbec that I would have never picked on my own — now it's my go-to recommendation for friends."</p>
+          <div class="testimonial-card__author">
+            <div class="testimonial-card__avatar">S</div>
+            <div>
+              <div class="testimonial-card__name">Sarah K.</div>
+              <div class="testimonial-card__role">Wine Enthusiast</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">★★★★★</div>
+          <p class="testimonial-card__quote">"As a sommelier, I was skeptical. But the AI recommendations are genuinely impressive — it understands nuance in a way I didn't expect from technology."</p>
+          <div class="testimonial-card__author">
+            <div class="testimonial-card__avatar">R</div>
+            <div>
+              <div class="testimonial-card__name">Roberto V.</div>
+              <div class="testimonial-card__role">Certified Sommelier</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">★★★★★</div>
+          <p class="testimonial-card__quote">"Group mode saved our dinner party. Five people with wildly different tastes, and PocketSomm found the perfect bottle we all loved."</p>
+          <div class="testimonial-card__author">
+            <div class="testimonial-card__avatar">L</div>
+            <div>
+              <div class="testimonial-card__name">Lauren T.</div>
+              <div class="testimonial-card__role">Beta Tester</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="testimonial-card">
+          <div class="testimonial-card__stars">★★★★★</div>
+          <p class="testimonial-card__quote">"The taste profile visualization is addictive. I love seeing how my palate has evolved over the months. It's like a Spotify Wrapped for wine."</p>
+          <div class="testimonial-card__author">
+            <div class="testimonial-card__avatar">D</div>
+            <div>
+              <div class="testimonial-card__name">David C.</div>
+              <div class="testimonial-card__role">Early Access Member</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       CTA / WAITLIST SECTION
+       ==================================================================== -->
+  <section class="cta-section" id="waitlist">
+    <div class="cta-section__bg"></div>
+    <div class="container">
+      <div class="cta-section__content reveal">
+        <h2 class="cta-section__title">
+          <span class="gradient-text-animated">Ready to Drink<br>Smarter?</span>
+        </h2>
+        <p class="cta-section__description">
+          Join the waitlist for early access. Be the first to experience the future of wine discovery — powered by AI, guided by real sommeliers.
+        </p>
+
+        <form class="waitlist-form" onsubmit="event.preventDefault(); this.querySelector('button').textContent='You\'re on the list! 🎉'; this.querySelector('input').disabled=true;">
+          <input type="email" class="waitlist-form__input" placeholder="Enter your email" required aria-label="Email address">
+          <button type="submit" class="btn btn--wine btn--large">
+            Get Early Access
+            <span class="btn__icon">→</span>
+          </button>
+        </form>
+
+        <p class="text-subtle text-sm mt-4">No spam. No cost. Just great wine.</p>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ====================================================================
+       FOOTER (Reusable Component)
+       ==================================================================== -->
+  <footer class="footer" id="footer">
+    <div class="container">
+      <div class="footer__grid">
+        <!-- Brand Column -->
+        <div class="footer__brand">
+          <div class="footer__logo">
+            <span class="footer__logo-icon">🍷</span>
+            PocketSomm
+          </div>
+          <p class="footer__tagline">
+            Your personal AI sommelier. Scan, discover, and drink better wine — every time.
+          </p>
+        </div>
+
+        <!-- Product Column -->
+        <div>
+          <h4 class="footer__column-title">Product</h4>
+          <ul class="footer__links">
+            <li><a href="#features" class="footer__link">Features</a></li>
+            <li><a href="#how-it-works" class="footer__link">How It Works</a></li>
+            <li><a href="#" class="footer__link">Pricing</a></li>
+            <li><a href="#waitlist" class="footer__link">Early Access</a></li>
+          </ul>
+        </div>
+
+        <!-- Company Column -->
+        <div>
+          <h4 class="footer__column-title">Company</h4>
+          <ul class="footer__links">
+            <li><a href="#" class="footer__link">About</a></li>
+            <li><a href="#" class="footer__link">Blog</a></li>
+            <li><a href="#" class="footer__link">Careers</a></li>
+            <li><a href="#" class="footer__link">Press</a></li>
+          </ul>
+        </div>
+
+        <!-- Legal Column -->
+        <div>
+          <h4 class="footer__column-title">Legal</h4>
+          <ul class="footer__links">
+            <li><a href="#" class="footer__link">Privacy Policy</a></li>
+            <li><a href="#" class="footer__link">Terms of Service</a></li>
+            <li><a href="#" class="footer__link">Cookie Policy</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Bottom Bar -->
+      <div class="footer__bottom">
+        <p class="footer__copyright">&copy; 2026 PocketSomm. All rights reserved. Must be 21+ to use this app.</p>
+        <div class="footer__socials">
+          <a href="#" class="footer__social" aria-label="Twitter/X">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+          <a href="#" class="footer__social" aria-label="Instagram">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+          </a>
+          <a href="#" class="footer__social" aria-label="TikTok">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- JavaScript -->
+  <script src="js/main.js"></script>
+</body>
+</html>
