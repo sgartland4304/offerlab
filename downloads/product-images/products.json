@@ -1,0 +1,198 @@
+[
+  {
+    "id": 1,
+    "name": "Glossier Boy Brow",
+    "filename": "01-glossier-boy-brow",
+    "brand_url": "https://www.glossier.com/products/boy-brow",
+    "shopify_json": "https://www.glossier.com/products/boy-brow.json",
+    "sephora_url": "https://www.sephora.com/product/glossier-boy-brow-volumizing-eyebrow-gel-pomade-P504526"
+  },
+  {
+    "id": 2,
+    "name": "Rhode Peptide Lip Treatment",
+    "filename": "02-rhode-peptide-lip-treatment",
+    "brand_url": "https://www.rhodeskin.com/products/peptide-lip-treatment",
+    "shopify_json": "https://www.rhodeskin.com/products/peptide-lip-treatment.json",
+    "sephora_url": "https://www.sephora.com/product/peptide-lip-treatment-P517486"
+  },
+  {
+    "id": 3,
+    "name": "Drunk Elephant Protini Polypeptide Cream",
+    "filename": "03-drunk-elephant-protini-polypeptide-cream",
+    "brand_url": "https://www.drunkelephant.com/protini-polypeptide-firming-refillable-moisturizer-856556004739.html",
+    "shopify_json": null,
+    "sephora_url": "https://www.sephora.com/product/protini-tm-polypeptide-cream-P427421"
+  },
+  {
+    "id": 4,
+    "name": "Summer Fridays Jet Lag Mask",
+    "filename": "04-summer-fridays-jet-lag-mask",
+    "brand_url": "https://summerfridays.com/products/jet-lag-mask",
+    "shopify_json": "https://summerfridays.com/products/jet-lag-mask.json",
+    "sephora_url": "https://www.sephora.com/product/jet-lag-mask-P429952"
+  },
+  {
+    "id": 5,
+    "name": "Tower 28 ShineOn Lip Jelly",
+    "filename": "05-tower-28-shineon-lip-jelly",
+    "brand_url": "https://www.tower28beauty.com/products/shine-on-lip-gloss-jelly",
+    "shopify_json": "https://www.tower28beauty.com/products/shine-on-lip-gloss-jelly.json",
+    "sephora_url": "https://www.sephora.com/product/shineon-lip-jelly-P448854"
+  },
+  {
+    "id": 6,
+    "name": "Supergoop Unseen Sunscreen",
+    "filename": "06-supergoop-unseen-sunscreen",
+    "brand_url": "https://supergoop.com/products/unseen-sunscreen-spf-50",
+    "shopify_json": "https://supergoop.com/products/unseen-sunscreen-spf-50.json",
+    "sephora_url": null
+  },
+  {
+    "id": 7,
+    "name": "Kosas Cloud Set Setting Powder",
+    "filename": "07-kosas-cloud-set-setting-powder",
+    "brand_url": "https://kosas.com/products/cloud-set",
+    "shopify_json": "https://kosas.com/products/cloud-set.json",
+    "sephora_url": "https://www.sephora.com/product/kosas-cloud-set-baked-setting-smoothing-talc-free-vegan-powder-P468685"
+  },
+  {
+    "id": 8,
+    "name": "Merit Minimalist Complexion Stick",
+    "filename": "08-merit-minimalist-complexion-stick",
+    "brand_url": "https://www.meritbeauty.com/products/the-minimalist",
+    "shopify_json": "https://www.meritbeauty.com/products/the-minimalist.json",
+    "sephora_url": "https://www.sephora.com/product/merit-the-minimalist-perfecting-complexion-foundation-concealer-stick-P468694"
+  },
+  {
+    "id": 9,
+    "name": "Olaplex No. 3 Hair Perfector",
+    "filename": "09-olaplex-no3-hair-perfector",
+    "brand_url": "https://olaplex.com/products/olaplex-n-3-hair-perfector-us",
+    "shopify_json": "https://olaplex.com/products/olaplex-n-3-hair-perfector-us.json",
+    "sephora_url": null
+  },
+  {
+    "id": 10,
+    "name": "Nécessaire The Body Wash",
+    "filename": "10-necessaire-the-body-wash",
+    "brand_url": "https://necessaire.com/products/the-body-wash-pump-fragrance-free",
+    "shopify_json": "https://necessaire.com/products/the-body-wash-pump-fragrance-free.json",
+    "sephora_url": null
+  },
+  {
+    "id": 11,
+    "name": "Touchland Power Mist",
+    "filename": "11-touchland-power-mist",
+    "brand_url": "https://touchland.com/products/rainwater-power-mist",
+    "shopify_json": "https://touchland.com/products/rainwater-power-mist.json",
+    "sephora_url": null
+  },
+  {
+    "id": 12,
+    "name": "Olipop Vintage Cola",
+    "filename": "12-olipop-vintage-cola",
+    "brand_url": "https://drinkolipop.com/products/vintage-cola",
+    "shopify_json": "https://drinkolipop.com/products/vintage-cola.json",
+    "sephora_url": null
+  },
+  {
+    "id": 13,
+    "name": "Graza Sizzle Olive Oil",
+    "filename": "13-graza-sizzle-olive-oil",
+    "brand_url": "https://www.graza.co/products/sizzle",
+    "shopify_json": "https://www.graza.co/products/sizzle.json",
+    "sephora_url": null
+  },
+  {
+    "id": 14,
+    "name": "Chamberlain Coffee Social Dog Blend",
+    "filename": "14-chamberlain-coffee-social-dog",
+    "brand_url": "https://chamberlaincoffee.com/products/social-dog-blend",
+    "shopify_json": "https://chamberlaincoffee.com/products/social-dog-blend.json",
+    "sephora_url": null
+  },
+  {
+    "id": 15,
+    "name": "Boy Smells DE NÎMES Candle",
+    "filename": "15-boy-smells-de-nimes-candle",
+    "brand_url": "https://boysmells.com/collections/candles",
+    "shopify_json": null,
+    "sephora_url": null,
+    "alt_urls": [
+      "https://kith.com/products/bs-denimes",
+      "https://www.candledelirium.com/products/boy-smells-de-nimes-candle"
+    ]
+  },
+  {
+    "id": 16,
+    "name": "Little Spoon Lunchers",
+    "filename": "16-little-spoon-lunchers",
+    "brand_url": "https://www.littlespoon.com/products/lunchers",
+    "shopify_json": null,
+    "sephora_url": null
+  },
+  {
+    "id": 17,
+    "name": "Wild One Harness",
+    "filename": "17-wild-one-harness",
+    "brand_url": "https://wildone.com/products/dog-harness",
+    "shopify_json": "https://wildone.com/products/dog-harness.json",
+    "sephora_url": null
+  },
+  {
+    "id": 18,
+    "name": "Magic Spoon Cereal",
+    "filename": "18-magic-spoon-cereal",
+    "brand_url": "https://magicspoon.com/",
+    "shopify_json": null,
+    "sephora_url": null
+  },
+  {
+    "id": 19,
+    "name": "Fly by Jing Sichuan Chili Crisp",
+    "filename": "19-fly-by-jing-sichuan-chili-crisp",
+    "brand_url": "https://flybyjing.com/products/sichuan-chili-crisp",
+    "shopify_json": "https://flybyjing.com/products/sichuan-chili-crisp.json",
+    "sephora_url": null
+  },
+  {
+    "id": 20,
+    "name": "Bala Weighted Bangles",
+    "filename": "20-bala-weighted-bangles",
+    "brand_url": "https://shopbala.com/products/bala-bangles",
+    "shopify_json": "https://shopbala.com/products/bala-bangles.json",
+    "sephora_url": null
+  },
+  {
+    "id": 21,
+    "name": "Our Place Always Pan",
+    "filename": "21-our-place-always-pan",
+    "brand_url": "https://fromourplace.com/products/always-essential-cooking-pan",
+    "shopify_json": "https://fromourplace.com/products/always-essential-cooking-pan.json",
+    "sephora_url": null
+  },
+  {
+    "id": 22,
+    "name": "Mejuri Croissant Dome Ring",
+    "filename": "22-mejuri-croissant-dome-ring",
+    "brand_url": "https://mejuri.com/shop/products/croissant-dome-ring",
+    "shopify_json": null,
+    "sephora_url": null
+  },
+  {
+    "id": 23,
+    "name": "Liquid I.V. Hydration Multiplier",
+    "filename": "23-liquid-iv-hydration-multiplier",
+    "brand_url": "https://www.liquid-iv.com/products/lemon-lime-hydration-multiplier",
+    "shopify_json": "https://www.liquid-iv.com/products/lemon-lime-hydration-multiplier.json",
+    "sephora_url": null
+  },
+  {
+    "id": 24,
+    "name": "Bloom Nutrition Greens",
+    "filename": "24-bloom-nutrition-greens",
+    "brand_url": "https://bloomnu.com/products/greens-superfoods",
+    "shopify_json": "https://bloomnu.com/products/greens-superfoods.json",
+    "sephora_url": null
+  }
+]
