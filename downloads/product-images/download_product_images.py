@@ -17,7 +17,8 @@ import requests
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
-DOWNLOAD_DIR = os.path.dirname(os.path.abspath(__file__))
+DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "images")
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                   "AppleWebKit/537.36 (KHTML, like Gecko) "
