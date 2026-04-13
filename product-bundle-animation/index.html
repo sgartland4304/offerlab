@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OfferLab — Create Bundle Animation</title>
+<style>
+  :root {
+    --bg: #efe7d7;
+    --button-bg: #4d2f06;
+    --button-text: #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    font-family: 'Aktiv Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: #342e26;
+    overflow: hidden;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+
+  /* Stage matches the Figma frame proportions (≈ 1051 × 805) */
+  .stage {
+    position: relative;
+    width: min(96vw, 1051px);
+    aspect-ratio: 1051 / 805;
+    background: var(--bg);
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ---------------- Products ---------------- */
+
+  .product {
+    position: absolute;
+    will-change: transform, opacity;
+    pointer-events: none;
+  }
+
+  .product img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+    -webkit-user-drag: none;
+  }
+
+  /* Touchland mist — left, rotated +26.01°, w 403 / h 531 */
+  .product--touchland {
+    left: 0;
+    bottom: 1.98%;     /* 15.95 / 805 */
+    width: 38.38%;     /* 403.374 / 1051 */
+    height: 65.99%;    /* 531.252 / 805 */
+    --rest-rotate: 26.01deg;
+  }
+
+  /* Stanley cup — middle, rotated -18.2°, w 765.88 / h 765.88 (square) */
+  .product--stanley {
+    left: 8.03%;       /* 84.42 / 1051 */
+    bottom: 0.03%;     /* 0.22 / 805 */
+    width: 72.86%;     /* 765.88 / 1051 */
+    height: 95.14%;    /* 765.88 / 805 */
+    --rest-rotate: -18.2deg;
+  }
+
+  /* Power bank — right, rotated +17.78°, w 583 / h 583 (square) */
+  .product--powerbank {
+    left: 41.08%;      /* 431.74 / 1051 */
+    bottom: 14.53%;    /* 116.95 / 805 */
+    width: 55.48%;     /* 583.088 / 1051 */
+    height: 72.43%;    /* 583.088 / 805 */
+    --rest-rotate: 17.78deg;
+  }
+
+  /* ---------------- Create Bundle Button ---------------- */
+
+  .cta {
+    position: absolute;
+    left: 31.92%;      /* 335.46 / 1051 */
+    bottom: 38.38%;    /* 309 / 805 */
+    width: 49.48%;     /* 520 / 1051 */
+    height: 18.26%;    /* 147 / 805 */
+    background: var(--button-bg);
+    border-radius: 9999px;
+    box-shadow: 2px 5px 2px 0 rgba(0,0,0,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--button-text);
+    font-weight: 600;
+    font-size: clamp(20px, 3.8vw, 40px);
+    letter-spacing: 0;
+    overflow: hidden;
+    z-index: 5;
+    transform-origin: center center;
+    will-change: transform, opacity;
+  }
+
+  .cta__label {
+    position: relative;
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .cta__ripple {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.45);
+    transform: translate(-50%, -50%) scale(0);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ---------------- Cursor ---------------- */
+
+  .cursor {
+    position: absolute;
+    width: 8.07%;     /* ≈ 85 / 1051 */
+    height: auto;
+    z-index: 10;
+    will-change: transform, opacity;
+    pointer-events: none;
+    /* purple/magenta cursor like Figma */
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.18));
+  }
+
+  .cursor svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    transform: rotate(-10.07deg);
+  }
+
+  /* ---------------- Bundle (final) ---------------- */
+
+  .bundle {
+    position: absolute;
+    /* Centered in the stage */
+    left: 50%;
+    top: 50%;
+    width: 56%;
+    aspect-ratio: 1 / 1;
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0;
+    border-radius: 36px;
+    overflow: hidden;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.18), 0 8px 16px rgba(0,0,0,0.10);
+    z-index: 4;
+    will-change: transform, opacity;
+    background: #f3ece0;
+  }
+
+  .bundle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  /* Soft glow burst when bundle generates */
+  .burst {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 60%;
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.85) 0%, rgba(255,237,132,0.4) 35%, rgba(255,237,132,0) 70%);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  /* ---------------- Replay button ---------------- */
+  .replay {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: #342e26;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    z-index: 100;
+    opacity: 0.9;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .replay:hover { opacity: 1; transform: translateY(-1px); }
+
+  /* ---------------- Animation: starting (still) frame ---------------- */
+  /* Before JS runs and on initial paint, the .stage has class .is-still
+     so all elements appear in their final Figma positions. */
+
+  .is-still .product--touchland { transform: rotate(var(--rest-rotate)); opacity: 1; }
+  .is-still .product--stanley   { transform: rotate(var(--rest-rotate)); opacity: 1; }
+  .is-still .product--powerbank { transform: rotate(var(--rest-rotate)); opacity: 1; }
+  .is-still .cta                { transform: scale(1); opacity: 1; }
+  .is-still .cursor             { transform: translate(0, 0); opacity: 1; }
+  .is-still .bundle             { display: none; }
+
+  /* The cursor sits over the right edge of the button in the still frame */
+  .cursor {
+    /* In Figma: bottom 214.13 / left 714.54 / w 105.79 / h 138.37  */
+    left: 67.99%;
+    bottom: 26.6%;
+  }
+
+  /* ---------------- Keyframes ---------------- */
+
+  /* Each product enters with a playful arc + spin, settling into its
+     final Figma rotation. */
+
+  @keyframes touchlandIn {
+    0%   { transform: translate(-140%, 60%) rotate(-220deg) scale(0.3); opacity: 0; }
+    55%  { opacity: 1; }
+    70%  { transform: translate(8%, -8%) rotate(40deg) scale(1.08); }
+    85%  { transform: translate(-3%, 3%) rotate(18deg) scale(0.97); }
+    100% { transform: translate(0, 0) rotate(26.01deg) scale(1); opacity: 1; }
+  }
+
+  @keyframes stanleyIn {
+    0%   { transform: translate(0, 130%) rotate(180deg) scale(0.3); opacity: 0; }
+    55%  { opacity: 1; }
+    70%  { transform: translate(0, -6%) rotate(-40deg) scale(1.06); }
+    85%  { transform: translate(0, 3%) rotate(-12deg) scale(0.98); }
+    100% { transform: translate(0, 0) rotate(-18.2deg) scale(1); opacity: 1; }
+  }
+
+  @keyframes powerbankIn {
+    0%   { transform: translate(140%, 50%) rotate(220deg) scale(0.3); opacity: 0; }
+    55%  { opacity: 1; }
+    70%  { transform: translate(-6%, -6%) rotate(-30deg) scale(1.08); }
+    85%  { transform: translate(3%, 2%) rotate(10deg) scale(0.97); }
+    100% { transform: translate(0, 0) rotate(17.78deg) scale(1); opacity: 1; }
+  }
+
+  /* Button pop-in */
+  @keyframes ctaPop {
+    0%   { transform: scale(0.2); opacity: 0; }
+    60%  { transform: scale(1.12); opacity: 1; }
+    80%  { transform: scale(0.96); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* Cursor reveal & travel */
+  @keyframes cursorIn {
+    0%   { transform: translate(40%, 40%) scale(0.6); opacity: 0; }
+    40%  { opacity: 1; }
+    100% { transform: translate(0, 0) scale(1); opacity: 1; }
+  }
+
+  /* The "tap" — small downward nudge */
+  @keyframes cursorTap {
+    0%   { transform: translate(0, 0) scale(1); }
+    50%  { transform: translate(2%, 4%) scale(0.94); }
+    100% { transform: translate(0, 0) scale(1); }
+  }
+
+  /* Button press (scale slightly down then back) */
+  @keyframes ctaPress {
+    0%   { transform: scale(1); }
+    50%  { transform: scale(0.94); }
+    100% { transform: scale(1); }
+  }
+
+  /* Ripple expanding inside the button */
+  @keyframes ripple {
+    0%   { transform: translate(-50%, -50%) scale(0);  opacity: 0.6; }
+    100% { transform: translate(-50%, -50%) scale(28); opacity: 0; }
+  }
+
+  /* The merge: each product spins toward the center, shrinks, and fades. */
+  @keyframes touchlandMerge {
+    0%   { transform: translate(0, 0) rotate(26.01deg) scale(1); opacity: 1; }
+    100% { transform: translate(60%, -40%) rotate(720deg) scale(0.05); opacity: 0; }
+  }
+  @keyframes stanleyMerge {
+    0%   { transform: translate(0, 0) rotate(-18.2deg) scale(1); opacity: 1; }
+    100% { transform: translate(0, -45%) rotate(-720deg) scale(0.05); opacity: 0; }
+  }
+  @keyframes powerbankMerge {
+    0%   { transform: translate(0, 0) rotate(17.78deg) scale(1); opacity: 1; }
+    100% { transform: translate(-60%, -25%) rotate(720deg) scale(0.05); opacity: 0; }
+  }
+
+  /* The CTA fades & shrinks to clear the canvas for the bundle */
+  @keyframes ctaExit {
+    0%   { transform: scale(1); opacity: 1; }
+    100% { transform: scale(0.4); opacity: 0; }
+  }
+
+  /* Cursor exits up-right */
+  @keyframes cursorExit {
+    0%   { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { transform: translate(40%, -40%) scale(0.4); opacity: 0; }
+  }
+
+  /* Burst flash */
+  @keyframes burst {
+    0%   { transform: translate(-50%, -50%) scale(0);  opacity: 0; }
+    25%  { opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
+  }
+
+  /* Bundle entrance: rounded rect appears, scales up with bounce */
+  @keyframes bundleIn {
+    0%   { transform: translate(-50%, -50%) scale(0.2) rotate(-8deg); opacity: 0; }
+    60%  { transform: translate(-50%, -50%) scale(1.06) rotate(2deg); opacity: 1; }
+    80%  { transform: translate(-50%, -50%) scale(0.97) rotate(-1deg); }
+    100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity: 1; }
+  }
+
+  /* Subtle floating idle for the bundle */
+  @keyframes bundleFloat {
+    0%, 100% { transform: translate(-50%, calc(-50% - 6px)) scale(1); }
+    50%      { transform: translate(-50%, calc(-50% + 6px)) scale(1); }
+  }
+
+  /* ---------------- Animating state classes ---------------- */
+
+  .is-animating .product--touchland {
+    opacity: 0;
+    transform: translate(-140%, 60%) rotate(-220deg) scale(0.3);
+  }
+  .is-animating .product--stanley {
+    opacity: 0;
+    transform: translate(0, 130%) rotate(180deg) scale(0.3);
+  }
+  .is-animating .product--powerbank {
+    opacity: 0;
+    transform: translate(140%, 50%) rotate(220deg) scale(0.3);
+  }
+  .is-animating .cta {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  .is-animating .cursor {
+    opacity: 0;
+    transform: translate(40%, 40%) scale(0.6);
+  }
+  .is-animating .bundle {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+    display: block;
+  }
+
+  /* Step animations applied as JS toggles classes */
+  .step-enter .product--touchland { animation: touchlandIn 1100ms cubic-bezier(.34,1.56,.64,1) 0ms forwards; }
+  .step-enter .product--stanley   { animation: stanleyIn   1200ms cubic-bezier(.34,1.56,.64,1) 180ms forwards; }
+  .step-enter .product--powerbank { animation: powerbankIn 1100ms cubic-bezier(.34,1.56,.64,1) 360ms forwards; }
+
+  .step-cta .cta { animation: ctaPop 600ms cubic-bezier(.34,1.56,.64,1) forwards; }
+
+  .step-cursor .cursor { animation: cursorIn 600ms cubic-bezier(.22,1,.36,1) forwards; }
+
+  .step-tap .cursor { animation: cursorTap 380ms ease-out forwards; }
+  .step-tap .cta    { animation: ctaPress  380ms ease-out forwards; }
+  .step-tap .cta__ripple { animation: ripple 700ms ease-out forwards; }
+
+  .step-merge .product--touchland { animation: touchlandMerge 900ms cubic-bezier(.7,0,.84,0) forwards; }
+  .step-merge .product--stanley   { animation: stanleyMerge   900ms cubic-bezier(.7,0,.84,0) forwards; }
+  .step-merge .product--powerbank { animation: powerbankMerge 900ms cubic-bezier(.7,0,.84,0) forwards; }
+  .step-merge .cta                { animation: ctaExit        500ms ease-in forwards; }
+  .step-merge .cursor             { animation: cursorExit     500ms ease-in forwards; }
+
+  .step-bundle .burst  { animation: burst 700ms ease-out forwards; }
+  .step-bundle .bundle { animation: bundleIn 900ms cubic-bezier(.34,1.56,.64,1) 120ms forwards; }
+  .step-idle  .bundle  { animation: bundleFloat 4s ease-in-out infinite; }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .replay { display: none; }
+    .stage * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="stage is-still" id="stage">
+
+    <!-- Touchland (left) -->
+    <div class="product product--touchland">
+      <img src="https://www.figma.com/api/mcp/asset/85fc2288-781c-4844-a2f1-23330ae812d8" alt="Touchland Power Mist" />
+    </div>
+
+    <!-- Stanley cup (middle) -->
+    <div class="product product--stanley">
+      <img src="https://www.figma.com/api/mcp/asset/77f9a66d-9414-4a7d-a7d1-7eecdbb5540a" alt="Stanley Tumbler" />
+    </div>
+
+    <!-- Power bank (right) -->
+    <div class="product product--powerbank">
+      <img src="https://www.figma.com/api/mcp/asset/f52da0ac-0b60-47e7-9689-36c41aa302a7" alt="Power Bank" />
+    </div>
+
+    <!-- Create bundle button -->
+    <div class="cta" id="cta">
+      <span class="cta__ripple" id="ripple"></span>
+      <span class="cta__label">Create bundle</span>
+    </div>
+
+    <!-- Cursor (purple/magenta arrow, matches Figma) -->
+    <div class="cursor" id="cursor">
+      <svg viewBox="0 0 86 126" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M5 5 L5 105 L30 80 L46 118 L60 112 L44 74 L80 74 Z"
+              fill="#C13DD6" stroke="#ffffff" stroke-width="6" stroke-linejoin="round" />
+      </svg>
+    </div>
+
+    <!-- Burst flash -->
+    <div class="burst"></div>
+
+    <!-- Final bundle image -->
+    <div class="bundle">
+      <img src="assets/bundle.png" alt="Generated product bundle"
+           onerror="this.parentNode.classList.add('bundle--missing'); this.style.display='none';" />
+    </div>
+
+    <button class="replay" id="replay">Replay ▶</button>
+  </div>
+
+<script>
+  const stage  = document.getElementById('stage');
+  const cta    = document.getElementById('cta');
+  const ripple = document.getElementById('ripple');
+  const replay = document.getElementById('replay');
+
+  // Helper: clear all step-* classes so an animation can be re-triggered.
+  function clearSteps() {
+    stage.classList.remove(
+      'step-enter', 'step-cta', 'step-cursor', 'step-tap',
+      'step-merge', 'step-bundle', 'step-idle'
+    );
+  }
+
+  // Force a reflow so re-added classes restart their animations.
+  function reflow() { void stage.offsetWidth; }
+
+  function resetRipple() {
+    ripple.style.animation = 'none';
+    void ripple.offsetWidth;
+    ripple.style.animation = '';
+  }
+
+  function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function run() {
+    // 1) Show the still Figma frame for a beat
+    stage.classList.remove('is-animating');
+    stage.classList.add('is-still');
+    clearSteps();
+    reflow();
+
+    await wait(900);
+
+    // 2) Reset to "off-screen" state, then play entrance
+    stage.classList.remove('is-still');
+    stage.classList.add('is-animating');
+    reflow();
+
+    // 3) Products fly in
+    stage.classList.add('step-enter');
+    await wait(1700); // longest entrance ~ 1100 + 360ms delay
+
+    // 4) Button pops in
+    stage.classList.add('step-cta');
+    await wait(700);
+
+    // 5) Cursor reveals
+    stage.classList.add('step-cursor');
+    await wait(650);
+
+    // 6) Tap (cursor nudge + button press + ripple)
+    resetRipple();
+    stage.classList.add('step-tap');
+    await wait(750);
+
+    // 7) Products spin into each other; CTA + cursor exit
+    stage.classList.add('step-merge');
+    await wait(900);
+
+    // 8) Burst + bundle reveal
+    stage.classList.add('step-bundle');
+    await wait(1100);
+
+    // 9) Idle float on bundle
+    stage.classList.add('step-idle');
+  }
+
+  replay.addEventListener('click', () => {
+    // Hard reset all animation state, then re-run.
+    clearSteps();
+    stage.classList.remove('is-animating');
+    stage.classList.add('is-still');
+    reflow();
+    run();
+  });
+
+  // Kick off after first paint
+  window.addEventListener('load', () => {
+    // Small delay so the still Figma frame is visible first
+    requestAnimationFrame(() => setTimeout(run, 400));
+  });
+</script>
+</body>
+</html>
