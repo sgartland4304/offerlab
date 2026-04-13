@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Download featured product images for 20 additional showcase brands.
-Curated mix of beauty, CPG, home, apparel, and wellness with visually
-distinctive products for the OfferLab marketing page.
+Download featured product images for 20 showcase brands.
+v2 - Uses CONFIRMED product URLs (verified via search) and falls back to
+og:image scraping rather than guessing Shopify handles.
 
 Usage:
     pip install requests beautifulsoup4
@@ -36,57 +36,55 @@ SESSION.headers.update({
     "Upgrade-Insecure-Requests": "1",
 })
 
+# All handles below verified via search -- primary strategy is og:image,
+# with Shopify JSON as secondary (same URL + .json suffix).
 PRODUCTS = [
     # ---------- BEAUTY & SKINCARE ----------
     {
         "filename": "35-tatcha-dewy-skin-cream",
         "name": "Tatcha The Dewy Skin Cream",
         "attempts": [
-            ("shopify_json", "https://www.tatcha.com/products/dewy-skin-cream.json"),
-            ("og_image", "https://www.tatcha.com/products/dewy-skin-cream.html"),
-            ("og_image", "https://www.tatcha.com/product/the-dewy-skin-cream/DEWY-SKIN-CREAM.html"),
+            ("shopify_json", "https://tatcha.com/products/the-dewy-skin-cream.json"),
+            ("og_image", "https://tatcha.com/products/the-dewy-skin-cream"),
         ],
     },
     {
         "filename": "36-ilia-super-serum-skin-tint",
-        "name": "ILIA Super Serum Skin Tint",
+        "name": "ILIA Super Serum Skin Tint SPF 40",
         "attempts": [
-            ("shopify_json", "https://iliabeauty.com/products/super-serum-skin-tint-spf-40.json"),
-            ("og_image", "https://iliabeauty.com/products/super-serum-skin-tint-spf-40"),
+            ("shopify_json", "https://iliabeauty.com/products/super-serum-skin-tint-spf-40-tinted-moisturizer.json"),
+            ("og_image", "https://iliabeauty.com/products/super-serum-skin-tint-spf-40-tinted-moisturizer"),
         ],
     },
     {
         "filename": "37-youth-to-the-people-superfood-cleanser",
         "name": "Youth To The People Superfood Cleanser",
         "attempts": [
-            ("shopify_json", "https://www.youthtothepeople.com/products/superfood-antioxidant-cleanser.json"),
-            ("og_image", "https://www.youthtothepeople.com/products/superfood-antioxidant-cleanser"),
+            ("og_image", "https://www.youthtothepeople.com/skincare/cleansers/superfood-cleanser/YTTP-10100.html"),
         ],
     },
     {
-        "filename": "38-saie-dew-balm",
-        "name": "Saie Dew Balm",
+        "filename": "38-saie-glowy-super-gel",
+        "name": "Saie Glowy Super Gel",
         "attempts": [
-            ("shopify_json", "https://saiehello.com/products/dew-balm.json"),
-            ("shopify_json", "https://saiehello.com/products/glowy-super-gel.json"),
-            ("og_image", "https://saiehello.com/products/dew-balm"),
-            ("og_image", "https://saiehello.com/products/glowy-super-gel"),
+            ("shopify_json", "https://saiehello.com/products/glowy-super-gel-luminizer.json"),
+            ("og_image", "https://saiehello.com/products/glowy-super-gel-luminizer"),
         ],
     },
     {
         "filename": "39-dieux-forever-eye-mask",
         "name": "Dieux Forever Eye Mask",
         "attempts": [
-            ("shopify_json", "https://dieuxskin.com/products/forever-eye-mask.json"),
-            ("og_image", "https://dieuxskin.com/products/forever-eye-mask"),
+            ("shopify_json", "https://www.dieuxskin.com/products/forever-eye-mask.json"),
+            ("og_image", "https://www.dieuxskin.com/products/forever-eye-mask"),
         ],
     },
     {
         "filename": "40-dae-signature-shampoo",
-        "name": "Dae Hair Signature Shampoo",
+        "name": "Dae Signature Shampoo",
         "attempts": [
-            ("shopify_json", "https://daehair.com/products/signature-shampoo.json"),
-            ("og_image", "https://daehair.com/products/signature-shampoo"),
+            ("shopify_json", "https://daehair.com/products/signature-shampoo-full-size-10oz.json"),
+            ("og_image", "https://daehair.com/products/signature-shampoo-full-size-10oz"),
         ],
     },
 
@@ -97,73 +95,65 @@ PRODUCTS = [
         "attempts": [
             ("shopify_json", "https://drinkpoppi.com/products/strawberry-lemon.json"),
             ("og_image", "https://drinkpoppi.com/products/strawberry-lemon"),
-            ("og_image", "https://drinkpoppi.com/"),
         ],
     },
     {
-        "filename": "42-recess-pom-hibiscus",
-        "name": "Recess Pom Hibiscus Mood Water",
+        "filename": "42-recess-pomegranate-hibiscus",
+        "name": "Recess Pomegranate Hibiscus Sparkling Water",
         "attempts": [
-            ("shopify_json", "https://www.takearecess.com/products/mood-water-pom-hibiscus.json"),
-            ("shopify_json", "https://www.takearecess.com/products/pomegranate-hibiscus.json"),
-            ("og_image", "https://www.takearecess.com/products/mood-water-pom-hibiscus"),
-            ("og_image", "https://www.takearecess.com/"),
+            ("og_image", "https://takearecess.com/shop/sparkling-water/pomegranate-hibiscus"),
         ],
     },
     {
-        "filename": "43-ghia-le-spritz",
-        "name": "Ghia Le Spritz Non-Alcoholic Aperitif",
+        "filename": "43-ghia-le-spritz-ghia-soda",
+        "name": "Ghia Le Spritz Ghia Soda",
         "attempts": [
-            ("shopify_json", "https://drinkghia.com/products/le-spritz.json"),
-            ("shopify_json", "https://drinkghia.com/products/ghia-original.json"),
-            ("og_image", "https://drinkghia.com/products/le-spritz"),
-            ("og_image", "https://drinkghia.com/"),
+            ("shopify_json", "https://drinkghia.com/products/ghia-soda.json"),
+            ("og_image", "https://drinkghia.com/products/ghia-soda"),
+            ("shopify_json", "https://drinkghia.com/products/le-spritz-blood-orange.json"),
+            ("og_image", "https://drinkghia.com/products/le-spritz-blood-orange"),
         ],
     },
     {
         "filename": "44-omsom-thai-larb-starter",
         "name": "Omsom Thai Larb Starter",
         "attempts": [
-            ("shopify_json", "https://omsom.com/products/thai-larb-starter.json"),
-            ("shopify_json", "https://omsom.com/products/southeast-asian-sampler.json"),
-            ("og_image", "https://omsom.com/products/thai-larb-starter"),
-            ("og_image", "https://omsom.com/collections/all-starters"),
+            ("shopify_json", "https://omsom.com/products/thai-larb-starter-pack.json"),
+            ("og_image", "https://omsom.com/products/thai-larb-starter-pack"),
         ],
     },
     {
-        "filename": "45-immi-tom-yum-ramen",
+        "filename": "45-immi-tom-yum-shrimp-ramen",
         "name": "Immi Tom Yum Shrimp Ramen",
         "attempts": [
-            ("shopify_json", "https://immieats.com/products/tom-yum-shrimp.json"),
-            ("og_image", "https://immieats.com/products/tom-yum-shrimp"),
-            ("og_image", "https://immieats.com/"),
+            ("shopify_json", "https://shop.immieats.com/products/tom-yum-shrimp-ramen.json"),
+            ("og_image", "https://shop.immieats.com/products/tom-yum-shrimp-ramen"),
         ],
     },
 
     # ---------- HOME & KITCHEN ----------
     {
-        "filename": "46-caraway-cookware-set-cream",
-        "name": "Caraway Ceramic Cookware Set (Cream)",
+        "filename": "46-caraway-cookware-set",
+        "name": "Caraway Ceramic Cookware Set",
         "attempts": [
-            ("shopify_json", "https://www.carawayhome.com/products/cookware-set.json"),
-            ("og_image", "https://www.carawayhome.com/products/cookware-set"),
-            ("og_image", "https://www.carawayhome.com/"),
+            ("shopify_json", "https://www.carawayhome.com/products/cookware-sets.json"),
+            ("og_image", "https://www.carawayhome.com/products/cookware-sets"),
         ],
     },
     {
-        "filename": "47-great-jones-dutchess-dutch-oven",
+        "filename": "47-great-jones-the-dutchess",
         "name": "Great Jones The Dutchess Dutch Oven",
         "attempts": [
-            ("shopify_json", "https://www.greatjonesgoods.com/products/the-dutchess.json"),
-            ("og_image", "https://www.greatjonesgoods.com/products/the-dutchess"),
+            ("shopify_json", "https://greatjonesgoods.com/products/the-dutchess.json"),
+            ("og_image", "https://greatjonesgoods.com/products/the-dutchess"),
         ],
     },
     {
         "filename": "48-brightland-awake-olive-oil",
-        "name": "Brightland AWAKE Olive Oil",
+        "name": "Brightland Awake Olive Oil",
         "attempts": [
-            ("shopify_json", "https://www.brightland.co/products/awake.json"),
-            ("og_image", "https://www.brightland.co/products/awake"),
+            ("shopify_json", "https://brightland.co/products/awake.json"),
+            ("og_image", "https://brightland.co/products/awake"),
         ],
     },
     {
@@ -172,36 +162,34 @@ PRODUCTS = [
         "attempts": [
             ("shopify_json", "https://www.otherland.com/products/daybed.json"),
             ("og_image", "https://www.otherland.com/products/daybed"),
-            ("og_image", "https://www.otherland.com/"),
         ],
     },
 
     # ---------- APPAREL & LIFESTYLE ----------
     {
-        "filename": "50-parachute-linen-venice-sheets",
+        "filename": "50-parachute-linen-venice-set",
         "name": "Parachute Linen Venice Sheet Set",
         "attempts": [
             ("shopify_json", "https://www.parachutehome.com/products/linen-venice-set.json"),
-            ("shopify_json", "https://www.parachutehome.com/products/linen-sheet-set.json"),
             ("og_image", "https://www.parachutehome.com/products/linen-venice-set"),
-            ("og_image", "https://www.parachutehome.com/products/linen-sheet-set"),
         ],
     },
     {
         "filename": "51-vuori-ponto-performance-pant",
         "name": "Vuori Ponto Performance Pant",
         "attempts": [
-            ("shopify_json", "https://vuoriclothing.com/products/ponto-performance-pant.json"),
-            ("og_image", "https://vuoriclothing.com/products/ponto-performance-pant"),
+            ("shopify_json", "https://vuoriclothing.com/products/ponto-performance-pant-heather-grey.json"),
+            ("og_image", "https://vuoriclothing.com/products/ponto-performance-pant-heather-grey"),
+            ("og_image", "https://vuoriclothing.com/products/ponto-performance-pant-black-heather"),
         ],
     },
     {
-        "filename": "52-rothys-the-point-flat",
+        "filename": "52-rothys-the-point",
         "name": "Rothy's The Point Flat",
         "attempts": [
-            ("shopify_json", "https://rothys.com/products/the-point.json"),
-            ("og_image", "https://rothys.com/products/the-point"),
-            ("og_image", "https://rothys.com/collections/womens-the-point"),
+            ("shopify_json", "https://rothys.com/products/the-point-black-solid.json"),
+            ("og_image", "https://rothys.com/products/the-point-black-solid"),
+            ("og_image", "https://rothys.com/products/the-point-ecru"),
         ],
     },
 
@@ -211,16 +199,14 @@ PRODUCTS = [
         "name": "Ritual Essential for Women 18+",
         "attempts": [
             ("og_image", "https://ritual.com/products/essential-for-women-multivitamin"),
-            ("og_image", "https://ritual.com/"),
         ],
     },
     {
-        "filename": "54-oura-ring-gen-3",
-        "name": "Oura Ring Gen 3",
+        "filename": "54-oura-ring-gen3-horizon-silver",
+        "name": "Oura Ring Gen3 Horizon Silver",
         "attempts": [
-            ("og_image", "https://ouraring.com/product/rings/heritage/silver"),
-            ("og_image", "https://ouraring.com/product/heritage-silver"),
-            ("og_image", "https://ouraring.com/"),
+            ("og_image", "https://ouraring.com/product/rings/oura-gen3/horizon/silver"),
+            ("og_image", "https://ouraring.com/product/rings/oura-gen3/heritage"),
         ],
     },
 ]
@@ -386,22 +372,6 @@ def try_og_image(page_url, filepath):
     return False
 
 
-def try_google(product_name, filepath):
-    try:
-        search_url = f"https://www.google.com/search?q={quote(product_name + ' product official')}&tbm=isch"
-        resp = SESSION.get(search_url, timeout=15)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "html.parser")
-        for img in soup.find_all("img"):
-            src = img.get("src", "")
-            if src.startswith("http") and ("encrypted-tbn" in src or "gstatic" in src) and len(src) > 50:
-                print(f"    Found via Google Images: {src[:80]}...")
-                return download_image(src, filepath)
-    except Exception as e:
-        print(f"    Google Images failed: {e}")
-    return False
-
-
 def main():
     print(f"Downloading showcase product images -> {DOWNLOAD_DIR}\n")
     print("=" * 70)
@@ -432,10 +402,6 @@ def main():
                 downloaded = try_og_image(url, filepath)
 
             time.sleep(0.5)
-
-        if not downloaded:
-            print(f"\n  Final fallback: Google Images...")
-            downloaded = try_google(name, filepath)
 
         if downloaded:
             success_count += 1
