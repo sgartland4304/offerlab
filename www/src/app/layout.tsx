@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
+import { Nav } from "@/components/layout/nav";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "OfferLab — Build Better Offers",
+    default: "OfferLab — Your next customer is already someone else's",
     template: "%s | OfferLab",
   },
   description:
-    "OfferLab helps you build, test, and optimize high-converting offers.",
+    "Bundle your products with other brands, unlock more from every creator, and earn on things you never had to stock or ship.",
   metadataBase: new URL("https://www.offerlab.com"),
 };
 
@@ -20,10 +19,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="antialiased">
-      <body className="flex min-h-dvh flex-col bg-background text-foreground">
-        <Header />
-        <main className="flex-1">{children}</main>
-        <Footer />
+      <body className="bg-surface-page text-content-primary">
+        {/* Outer page padding creates the inset around the rounded body */}
+        <div className="min-h-dvh p-4">
+          {/* Rounded body container */}
+          <div className="relative isolate overflow-hidden rounded-[var(--radius-body)] bg-surface-body">
+            <Nav />
+            <main>{children}</main>
+          </div>
+        </div>
       </body>
     </html>
   );
