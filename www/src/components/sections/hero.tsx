@@ -1,35 +1,39 @@
+import { Icon } from "@/components/ui/icon";
 import { HeroFloatingCards } from "./hero-floating-cards";
 import { HeroSearchBox } from "./hero-search-box";
 
 /**
- * Homepage hero section.
+ * Homepage hero.
  *
- * Layout:
- *  - Full-width, centered column for headline + subhead + search input
- *  - Absolutely positioned floating product cards behind & around the copy
- *  - Cards drift right-to-left with gentle floating motion (shop.app-style)
+ * Always fills the full viewport (min-h-dvh) so the next section starts
+ * below the fold on every device. Uses the "background base" (cream)
+ * surface as a visual accent against the white elevated body default.
  */
 export function Hero() {
   return (
-    <section className="relative overflow-hidden pb-[var(--spacing-section,6rem)] pt-[200px]">
-      {/* Background floating cards — render first so they sit behind text */}
+    <section className="relative isolate flex min-h-dvh w-full flex-col items-center justify-center overflow-hidden bg-background-base">
+      {/* Floating product cards — background layer */}
       <HeroFloatingCards />
 
       {/* Foreground content */}
-      <div className="relative z-10 mx-auto flex max-w-[1680px] flex-col items-center px-8 text-center">
-        <h1 className="mx-auto max-w-[1100px] text-balance font-display text-[clamp(3rem,7vw,112px)] font-semibold leading-[0.95] tracking-[var(--tracking-tight)] text-content-primary">
-          Your next customer is already
-          <br />
-          <span className="italic">someone else&rsquo;s</span>
+      <div className="relative z-10 mx-auto flex w-full max-w-[var(--container-max)] flex-col items-center px-[var(--section-padding-x)] text-center">
+        <h1 className="text-display-hero text-content-primary text-[clamp(2.75rem,7vw,112px)]">
+          Your next customer is
+          <br className="hidden sm:inline" />
+          <span className="sm:hidden"> </span>
+          already <span className="italic">someone else&rsquo;s</span>
         </h1>
 
-        <p className="mx-auto mt-8 max-w-[480px] text-balance text-base leading-relaxed text-content-secondary">
+        <p className="mt-6 max-w-[480px] text-balance text-base leading-relaxed text-content-secondary sm:mt-8 sm:text-md">
           Bundle your products with other brands, unlock more from every
           creator, and earn on things you never had to stock or ship.
         </p>
 
-        <div className="mt-10 w-full max-w-[600px]">
-          <HeroSearchBox />
+        <div className="mt-8 w-full max-w-[600px] sm:mt-10">
+          <HeroSearchBox
+            leftIcon={<Icon name="chain-link-4" className="size-5 text-content-secondary" />}
+            submitIcon={<Icon name="arrow-right" className="size-5 text-content-primary" />}
+          />
         </div>
       </div>
     </section>

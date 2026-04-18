@@ -1,211 +1,226 @@
-"use client";
-
-import { useEffect, useRef } from "react";
-import { gsap } from "@/lib/gsap";
-
 /**
- * Floating product card data.
+ * Hero floating product cards.
  *
- * Positions are expressed as % of the hero container so the layout
- * scales with viewport width. Cards drift gently up/down continuously,
- * with a slow right-to-left drift applied to the whole track.
+ * Pure-CSS infinite conveyor that:
+ *   1. On load, flips each card in with a 3D rotateY reveal, staggered.
+ *   2. Continuously drifts cards right-to-left across the hero.
+ *   3. Fades out as a card approaches the center (where hero text sits).
+ *   4. Resets off-screen right and flips back in — repeat forever.
  *
- * Inspired by the shop.app hero treatment.
+ * All motion is driven by the `hero-card-drift` @keyframes defined in
+ * globals.css, controlled per-card via CSS custom properties:
+ *   --card-travel: horizontal distance to cover (px, negative = leftward)
+ *   animation-duration, animation-delay
+ *
+ * Cards are absolutely positioned on left/right bands (outside the
+ * headline column) so they never directly overlap the text on any
+ * viewport size. On mobile, the card count is reduced via CSS.
  */
-type FloatingCard = {
+
+type Card = {
   id: string;
+  /** Which side of the hero the card lives on */
+  side: "left" | "right";
+  /** Row position as % from top of hero (0–100) */
+  topPct: number;
+  /** Horizontal offset from its side (px) — how far from the edge */
+  offset: number;
+  /** Card size variant */
   size: "sm" | "lg";
-  /** Percent from left (relative to hero container) */
-  xPct: number;
-  /** Offset from top in pixels */
-  y: number;
-  /** Rotation in degrees */
+  /** Rotation at rest (deg) */
   rotate: number;
-  /** Background placeholder color while images are not wired up */
+  /** Placeholder tint while product images are unwired */
   tone: string;
+  /** Animation duration in seconds (slower = calmer) */
+  duration: number;
+  /** Delay before first appearance (seconds) */
+  delay: number;
+  /** How far to travel left per cycle (negative px) */
+  travel: number;
   title?: string;
   brands?: string;
+  /** If true, hidden on mobile (viewport < sm) */
+  desktopOnly?: boolean;
 };
 
-const CARDS: FloatingCard[] = [
+const CARDS: Card[] = [
+  // Right column — these are closer to where text is; fade-out point matters most
   {
-    id: "c1",
+    id: "r1",
+    side: "right",
+    topPct: 8,
+    offset: 32,
     size: "lg",
-    xPct: 4,
-    y: 60,
-    rotate: -4,
-    tone: "#f4e6d1",
-    title: "The Morning Routine Kit",
-    brands: "Brand One × Brand Two × Brand Three",
-  },
-  {
-    id: "c2",
-    size: "sm",
-    xPct: 12,
-    y: 380,
-    rotate: 5,
-    tone: "#e6d4e4",
-  },
-  {
-    id: "c3",
-    size: "lg",
-    xPct: 6,
-    y: 620,
     rotate: 3,
-    tone: "#d4e4d6",
-    title: "The Move-In Starter Kit",
-    brands: "Brand One × Brand Two × Brand Three",
-  },
-  {
-    id: "c4",
-    size: "sm",
-    xPct: 20,
-    y: 820,
-    rotate: -6,
-    tone: "#f0dbc9",
-  },
-  {
-    id: "c5",
-    size: "lg",
-    xPct: 82,
-    y: 40,
-    rotate: 4,
     tone: "#e8dfd0",
+    duration: 26,
+    delay: 0.2,
+    travel: 560,
     title: "The New Parent Bundle",
-    brands: "Brand One × Brand Two × Brand Three",
+    brands: "Brand One × Brand Two",
   },
   {
-    id: "c6",
+    id: "r2",
+    side: "right",
+    topPct: 36,
+    offset: 6,
     size: "sm",
-    xPct: 92,
-    y: 340,
     rotate: -3,
     tone: "#d5dfe8",
+    duration: 22,
+    delay: 0.5,
+    travel: 520,
+    desktopOnly: true,
   },
   {
-    id: "c7",
+    id: "r3",
+    side: "right",
+    topPct: 58,
+    offset: 28,
     size: "lg",
-    xPct: 84,
-    y: 580,
     rotate: -5,
     tone: "#f5e7da",
+    duration: 28,
+    delay: 0.8,
+    travel: 600,
     title: "The Sunday Reset Bundle",
-    brands: "Brand One × Brand Two × Brand Three",
+    brands: "Brand One × Brand Two",
   },
   {
-    id: "c8",
+    id: "r4",
+    side: "right",
+    topPct: 82,
+    offset: 14,
     size: "sm",
-    xPct: 76,
-    y: 820,
     rotate: 4,
     tone: "#e2d8e6",
+    duration: 24,
+    delay: 1.1,
+    travel: 540,
+    desktopOnly: true,
+  },
+  // Left column — drift leftward then reset on the far right band (off-screen)
+  {
+    id: "l1",
+    side: "left",
+    topPct: 14,
+    offset: 6,
+    size: "lg",
+    rotate: -4,
+    tone: "#f4e6d1",
+    duration: 30,
+    delay: 0.4,
+    travel: 400,
+    title: "The Morning Routine Kit",
+    brands: "Brand One × Brand Two",
+  },
+  {
+    id: "l2",
+    side: "left",
+    topPct: 42,
+    offset: 18,
+    size: "sm",
+    rotate: 5,
+    tone: "#e6d4e4",
+    duration: 25,
+    delay: 0.6,
+    travel: 380,
+    desktopOnly: true,
+  },
+  {
+    id: "l3",
+    side: "left",
+    topPct: 62,
+    offset: 4,
+    size: "lg",
+    rotate: 3,
+    tone: "#d4e4d6",
+    duration: 29,
+    delay: 0.9,
+    travel: 420,
+    title: "The Move-In Kitchen Kit",
+    brands: "Brand One × Brand Two",
+  },
+  {
+    id: "l4",
+    side: "left",
+    topPct: 86,
+    offset: 22,
+    size: "sm",
+    rotate: -6,
+    tone: "#f0dbc9",
+    duration: 23,
+    delay: 1.2,
+    travel: 400,
+    desktopOnly: true,
   },
 ];
 
 export function HeroFloatingCards() {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const cards = container.querySelectorAll<HTMLElement>("[data-card]");
-
-    // Intro: cards fade + scale + rise in, with a gentle stagger from outside → in.
-    gsap.set(cards, { opacity: 0, y: 40, scale: 0.92 });
-    gsap.to(cards, {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      duration: 1.2,
-      ease: "expo.out",
-      stagger: {
-        each: 0.08,
-        from: "random",
-      },
-      delay: 0.2,
-    });
-
-    // Continuous gentle floating loop — each card has its own phase.
-    const floatTweens = Array.from(cards).map((card, i) => {
-      const amp = 10 + (i % 3) * 4; // 10-18px
-      const dur = 5 + (i % 4) * 0.8; // 5-7.4s
-      return gsap.to(card, {
-        y: `+=${amp}`,
-        duration: dur,
-        ease: "sine.inOut",
-        yoyo: true,
-        repeat: -1,
-        delay: i * 0.15,
-      });
-    });
-
-    // Slow right-to-left drift for the whole formation.
-    const driftTween = gsap.to(cards, {
-      x: "-=30",
-      duration: 12,
-      ease: "sine.inOut",
-      yoyo: true,
-      repeat: -1,
-      stagger: {
-        each: 0.3,
-        from: "start",
-      },
-    });
-
-    return () => {
-      floatTweens.forEach((t) => t.kill());
-      driftTween.kill();
-    };
-  }, []);
-
   return (
     <div
-      ref={containerRef}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-0 overflow-hidden"
+      className="pointer-events-none absolute inset-0 overflow-hidden [perspective:1200px]"
     >
-      <div className="relative mx-auto h-full max-w-[1680px]">
-        {CARDS.map((card) => (
-          <FloatingCard key={card.id} card={card} />
-        ))}
-      </div>
+      {CARDS.map((card) => (
+        <FloatingCard key={card.id} card={card} />
+      ))}
     </div>
   );
 }
 
-function FloatingCard({ card }: { card: FloatingCard }) {
+function FloatingCard({ card }: { card: Card }) {
   const isLarge = card.size === "lg";
-  const width = isLarge ? 205 : 140;
-  const height = isLarge ? 245 : 140;
+  const width = isLarge ? 200 : 132;
+  const height = isLarge ? 240 : 132;
+
+  // Position: stick to left or right band of hero, pulled inward by `offset` px.
+  // Travel is applied as an inline CSS variable so keyframes can use it.
+  const positionStyle: React.CSSProperties =
+    card.side === "right"
+      ? { right: `${card.offset}px` }
+      : { left: `${card.offset}px` };
+
+  // For left-side cards, travel is positive (moving RIGHT off-screen then back left).
+  // For right-side cards, travel is negative (moving LEFT toward center).
+  // We always express drift as "start -> left movement" in the keyframes, so invert
+  // the sign for the left-column cards which actually start from far-left.
+  const travel = card.side === "right" ? -card.travel : -card.travel;
 
   return (
     <div
-      data-card
-      className="absolute origin-center"
+      className={`absolute will-change-transform ${card.desktopOnly ? "hidden sm:block" : ""}`}
       style={{
-        left: `${card.xPct}%`,
-        top: `${card.y}px`,
+        ...positionStyle,
+        top: `${card.topPct}%`,
         width: `${width}px`,
         height: `${height}px`,
-        transform: `rotate(${card.rotate}deg)`,
+        transformStyle: "preserve-3d",
+        animation: `hero-card-drift ${card.duration}s linear ${card.delay}s infinite`,
+        // @ts-expect-error -- CSS custom property
+        "--card-travel": `${travel}px`,
       }}
     >
-      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[var(--radius-2xl)] bg-white p-3 shadow-[var(--shadow-card)]">
-        {/* Product image placeholder — swap for real <Image> when assets arrive */}
+      <div
+        className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl bg-background-elevated p-3 shadow-[var(--shadow-card)]"
+        style={{ transform: `rotate(${card.rotate}deg)` }}
+      >
+        {/* Product image placeholder — swap for real <Image> when product assets are ready */}
         <div
-          className="relative flex-1 rounded-[var(--radius-lg)]"
+          className="relative flex-1 rounded-xl"
           style={{ background: card.tone }}
         >
-          <div className="absolute inset-0 flex items-center justify-center opacity-40">
+          <div className="absolute inset-0 flex items-center justify-center text-content-primary/30">
             <svg
-              width="48"
-              height="48"
+              width="40"
+              height="40"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
-              className="text-content-primary"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
             >
               <path d="M20 7 12 3 4 7v10l8 4 8-4V7Z" />
               <path d="m4 7 8 4 8-4" />
@@ -214,9 +229,8 @@ function FloatingCard({ card }: { card: FloatingCard }) {
           </div>
         </div>
 
-        {/* Caption (large cards only) */}
         {isLarge && card.title && (
-          <div className="mt-3 px-1 pb-1">
+          <div className="mt-2.5 px-1 pb-0.5">
             <p className="truncate text-xs font-semibold text-content-primary">
               {card.title}
             </p>
