@@ -17,7 +17,7 @@ export function Hero() {
 
       {/* Foreground content */}
       <div className="relative z-10 mx-auto flex max-w-[1680px] flex-col items-center px-8 text-center">
-        <h1 className="mx-auto max-w-[1100px] text-balance font-display text-[clamp(3rem,7vw,112px)] font-semibold leading-[0.95] tracking-[var(--tracking-tight)] text-content-primary">
+        <h1 className="mx-auto max-w-[1100px] text-balance font-display text-[clamp(3rem,7vw,112px)] font-bold leading-[0.95] tracking-[var(--tracking-tight)] text-content-primary">
           Your next customer is already
           <br />
           <span className="italic">someone else&rsquo;s</span>

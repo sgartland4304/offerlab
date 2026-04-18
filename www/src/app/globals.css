@@ -94,8 +94,9 @@
   --color-border-strong: var(--border-strong);
 
   /* Fonts */
-  --font-sans: "Aktiv Grotesk", "Inter", system-ui, -apple-system, sans-serif;
-  --font-display: "Aktiv Grotesk", "Inter", system-ui, sans-serif;
+  --font-sans: var(--font-aktiv-grotesk), sans-serif;
+  --font-display: var(--font-media-sans), sans-serif;
+  --font-mono: var(--font-fragment-mono), monospace;
 
   /* Type scale */
   --text-xs: 12px;
@@ -154,7 +155,7 @@ html {
 body {
   background: var(--surface-page);
   color: var(--content-primary);
-  font-family: var(--font-sans, system-ui, sans-serif);
+  font-family: var(--font-aktiv-grotesk, sans-serif);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

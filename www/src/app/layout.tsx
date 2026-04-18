@@ -1,6 +1,58 @@
 import type { Metadata } from "next";
+import localFont from "next/font/local";
 import { Nav } from "@/components/layout/nav";
 import "./globals.css";
+
+const mediaSans = localFont({
+  src: [
+    {
+      path: "../../assets/fonts/Media-Sans/MediaSansSemiCondensedWeb-Bold.woff2",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-media-sans",
+  display: "swap",
+});
+
+const aktivGrotesk = localFont({
+  src: [
+    {
+      path: "../../assets/fonts/AktivGrotesk/AktivGrotesk-Regular.woff2",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../assets/fonts/AktivGrotesk/AktivGrotesk-Medium.woff2",
+      weight: "500",
+      style: "normal",
+    },
+    {
+      path: "../../assets/fonts/AktivGrotesk/AktivGrotesk-Semibold.woff2",
+      weight: "600",
+      style: "normal",
+    },
+  ],
+  variable: "--font-aktiv-grotesk",
+  display: "swap",
+});
+
+const fragmentMono = localFont({
+  src: [
+    {
+      path: "../../assets/fonts/Fragment_Mono/FragmentMono-Regular.ttf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../assets/fonts/Fragment_Mono/FragmentMono-Italic.ttf",
+      weight: "400",
+      style: "italic",
+    },
+  ],
+  variable: "--font-fragment-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -18,11 +70,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="antialiased">
+    <html
+      lang="en"
+      className={`antialiased ${mediaSans.variable} ${aktivGrotesk.variable} ${fragmentMono.variable}`}
+    >
       <body className="bg-surface-page text-content-primary">
-        {/* Outer page padding creates the inset around the rounded body */}
         <div className="min-h-dvh p-4">
-          {/* Rounded body container */}
           <div className="relative isolate overflow-hidden rounded-[28px] bg-[#F7F5F0]">
             <Nav />
             <main>{children}</main>
