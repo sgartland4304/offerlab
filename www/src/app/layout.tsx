@@ -23,7 +23,7 @@ export default function RootLayout({
         {/* Outer page padding creates the inset around the rounded body */}
         <div className="min-h-dvh p-4">
           {/* Rounded body container */}
-          <div className="relative isolate overflow-hidden rounded-[var(--radius-body)] bg-surface-body">
+          <div className="relative isolate overflow-hidden rounded-[28px] bg-[#F7F5F0]">
             <Nav />
             <main>{children}</main>
           </div>

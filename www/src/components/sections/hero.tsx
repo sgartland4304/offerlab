@@ -11,7 +11,7 @@ import { HeroSearchBox } from "./hero-search-box";
  */
 export function Hero() {
   return (
-    <section className="relative overflow-hidden pb-[var(--spacing-section,6rem)] pt-[200px]">
+    <section className="relative overflow-hidden pb-[var(--spacing-section,6rem)] pt-[80px]">
       {/* Background floating cards — render first so they sit behind text */}
       <HeroFloatingCards />
 

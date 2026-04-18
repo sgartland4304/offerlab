@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { IconArrowRight, IconLinkChain } from "@/components/ui/icons";
+import { IconArrowRight, IconArrowUp, IconLinkChain } from "@/components/ui/icons";
 
 const TYPING_PLACEHOLDERS = [
   "Enter your website to start collabing",
@@ -18,7 +18,7 @@ export function HeroSearchBox() {
   const [focused, setFocused] = useState(false);
 
   useEffect(() => {
-    if (value) return;
+    if (value || focused) return;
 
     const current = TYPING_PLACEHOLDERS[placeholderIndex];
     const targetLength = isDeleting ? 0 : current.length;
@@ -45,14 +45,14 @@ export function HeroSearchBox() {
       );
     }, delta);
     return () => clearTimeout(t);
-  }, [typed, isDeleting, placeholderIndex, value]);
+  }, [typed, isDeleting, placeholderIndex, value, focused]);
 
   const isActive = focused || !!value;
 
   return (
     <form
       onSubmit={(e) => e.preventDefault()}
-      className="relative w-full rounded-[32px] bg-white/95 p-2 shadow-[0_4px_24px_rgba(0,0,0,0.12),0_0_0_4.5px_rgba(0,0,0,0.04)] outline outline-4 outline-white/20 backdrop-blur-md"
+      className="relative w-full rounded-[32px] bg-white/95 p-2 shadow-[0_4px_24px_rgba(0,0,0,0.12),0_0_0_4.5px_rgba(0,0,0,0.04)] outline outline-4 outline-white/20 backdrop-blur-md transition-[border-radius] duration-200"
     >
       <div className="relative flex h-12 items-center">
         {/* Left icon — desktop only */}
@@ -67,30 +67,41 @@ export function HeroSearchBox() {
           onChange={(e) => setValue(e.target.value)}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          placeholder=""
+          placeholder={focused ? "www.yourbrand.com" : ""}
           aria-label="Enter your website URL"
-          className={`h-full w-full bg-transparent pr-12 pl-5 text-base text-content-primary outline-none md:pl-[52px] ${isActive ? "text-left" : "text-center"}`}
+          className={`h-full w-full bg-transparent pr-12 pl-5 text-base text-content-primary outline-none placeholder:text-content-secondary md:pl-[52px] ${isActive ? "text-left" : "text-center"}`}
         />
 
-        {/* Animated typing placeholder */}
-        {!value && (
+        {/* Animated typing placeholder — idle only */}
+        {!value && !focused && (
           <span
             aria-hidden="true"
-            className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-base text-content-secondary transition-opacity duration-300 ${focused ? "opacity-0" : "opacity-100"}`}
+            className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-base text-content-secondary"
           >
             {typed}
           </span>
         )}
 
-        {/* Submit button */}
+        {/* Submit button — arrow-right when idle, arrow-up when focused */}
         <button
           type="submit"
           aria-label="Start co-selling"
           className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-brand-shine text-content-primary shadow-[0_4px_24px_rgba(255,237,132,0.8)] transition-transform hover:scale-105 active:scale-95"
         >
-          <IconArrowRight className="h-5 w-5" />
+          {isActive ? (
+            <IconArrowUp className="h-5 w-5" />
+          ) : (
+            <IconArrowRight className="h-5 w-5" />
+          )}
         </button>
       </div>
+
+      {/* Focus-expanded history section */}
+      {focused && (
+        <div className="mt-1 border-t border-border-subtle px-3 pb-2 pt-3">
+          <p className="text-sm font-semibold text-content-secondary">Search history</p>
+        </div>
+      )}
     </form>
   );
 }
