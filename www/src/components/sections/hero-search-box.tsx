@@ -87,7 +87,7 @@ export function HeroSearchBox() {
         <button
           type="submit"
           aria-label="Start co-selling"
-          className="absolute right-0 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-brand-shine text-content-primary shadow-[0_4px_24px_rgba(255,237,132,0.8)] transition-transform hover:scale-105 active:scale-95"
+          className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full bg-brand-shine text-content-primary shadow-[0_4px_24px_rgba(255,237,132,0.8)] transition-transform hover:scale-105 active:scale-95"
         >
           <IconArrowRight className="h-5 w-5" />
         </button>
