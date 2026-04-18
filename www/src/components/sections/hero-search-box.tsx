@@ -69,17 +69,16 @@ export function HeroSearchBox() {
           onBlur={() => setFocused(false)}
           placeholder=""
           aria-label="Enter your website URL"
-          className={`h-full w-full bg-transparent pr-12 pl-5 text-base text-content-primary outline-none md:pl-[52px] ${isActive ? "text-left" : "text-center md:text-left"}`}
+          className={`h-full w-full bg-transparent pr-12 pl-5 text-base text-content-primary outline-none md:pl-[52px] ${isActive ? "text-left" : "text-center"}`}
         />
 
         {/* Animated typing placeholder */}
         {!value && (
           <span
             aria-hidden="true"
-            className={`pointer-events-none absolute top-1/2 -translate-y-1/2 flex items-center text-base text-content-secondary transition-opacity duration-300 left-1/2 -translate-x-1/2 md:left-[52px] md:translate-x-0 ${focused ? "opacity-0" : "opacity-100"}`}
+            className={`pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-base text-content-secondary transition-opacity duration-300 ${focused ? "opacity-0" : "opacity-100"}`}
           >
             {typed}
-            <span className="ml-0.5 inline-block h-[1em] w-[1.5px] animate-pulse bg-content-secondary" />
           </span>
         )}
 
