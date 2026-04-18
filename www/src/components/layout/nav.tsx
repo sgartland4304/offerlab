@@ -29,7 +29,7 @@ export function Nav() {
             <NavLink href="/brands">Brands</NavLink>
             <span
               aria-hidden="true"
-              className="mx-2 block h-1 w-1 rounded-full bg-brand-accent/40"
+              className="mx-2 block h-1 w-1 rounded-full bg-content-primary"
             />
             <NavLink href="/creators">Creators</NavLink>
           </div>
@@ -71,7 +71,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className="rounded-[12px] px-3 py-1 text-base font-medium text-brand-accent transition-colors hover:bg-[var(--content-background-overlay)]"
+      className="flex h-12 items-center justify-center rounded-full px-3 py-2 text-base font-medium text-brand-accent transition-colors hover:bg-[var(--content-background-overlay)]"
     >
       {children}
     </Link>
