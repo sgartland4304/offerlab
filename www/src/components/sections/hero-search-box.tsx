@@ -76,10 +76,10 @@ export function HeroSearchBox() {
         {!value && (
           <span
             aria-hidden="true"
-            className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-base text-content-secondary transition-opacity duration-300 left-1/2 -translate-x-1/2 md:left-[52px] md:translate-x-0 ${focused ? "opacity-0" : "opacity-100"}`}
+            className={`pointer-events-none absolute top-1/2 -translate-y-1/2 flex items-center text-base text-content-secondary transition-opacity duration-300 left-1/2 -translate-x-1/2 md:left-[52px] md:translate-x-0 ${focused ? "opacity-0" : "opacity-100"}`}
           >
             {typed}
-            <span className="ml-0.5 inline-block h-[1.1em] w-[1.5px] -translate-y-[-2px] animate-pulse bg-content-secondary align-middle" />
+            <span className="ml-0.5 inline-block h-[1em] w-[1.5px] animate-pulse bg-content-secondary" />
           </span>
         )}
 
