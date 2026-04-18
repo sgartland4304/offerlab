@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { IconArrowRight } from "@/components/ui/icons";
 
 /**
  * Main site navigation.
@@ -47,7 +47,7 @@ export function Nav() {
               className="flex h-12 items-center gap-2 rounded-full bg-brand-shine px-[18px] text-sm font-semibold text-content-primary transition-colors hover:bg-brand-shine-hover"
             >
               Start co-selling
-              <ArrowRight className="h-5 w-5" strokeWidth={2.25} />
+              <IconArrowRight className="h-5 w-5" />
             </Link>
           </div>
         </div>

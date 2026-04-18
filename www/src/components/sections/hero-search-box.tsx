@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Link2 } from "lucide-react";
+import { IconArrowRight, IconLinkChain } from "@/components/ui/icons";
 
 const TYPING_PLACEHOLDERS = [
   "Enter your website to start collabing",
@@ -57,7 +57,7 @@ export function HeroSearchBox() {
       <div className="relative flex h-12 items-center">
         {/* Left icon — desktop only */}
         <div className="pointer-events-none absolute left-3 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center md:flex">
-          <Link2 className="h-5 w-5 text-content-secondary" strokeWidth={2} />
+          <IconLinkChain className="h-5 w-5 text-content-secondary" />
         </div>
 
         {/* Input */}
@@ -89,7 +89,7 @@ export function HeroSearchBox() {
           aria-label="Start co-selling"
           className="absolute right-0 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-brand-shine text-content-primary shadow-[0_4px_24px_rgba(255,237,132,0.8)] transition-transform hover:scale-105 active:scale-95"
         >
-          <ArrowRight className="h-5 w-5" strokeWidth={2.25} />
+          <IconArrowRight className="h-5 w-5" />
         </button>
       </div>
     </form>
