@@ -95,13 +95,6 @@ export function HeroSearchBox() {
           )}
         </button>
       </div>
-
-      {/* Focus-expanded history section */}
-      {focused && (
-        <div className="mt-1 border-t border-border-subtle px-3 pb-2 pt-3">
-          <p className="text-sm font-semibold text-content-secondary">Search history</p>
-        </div>
-      )}
     </form>
   );
 }

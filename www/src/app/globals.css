@@ -19,13 +19,12 @@
   --content-secondary: rgba(52, 46, 38, 0.7);
   --content-tertiary: rgba(52, 46, 38, 0.5);
   --content-on-brand: #342e26;
-  --content-background-overlay: rgba(104, 67, 0, 0.08);
 
-  /* --- Surface --- */
-  --surface-page: #efe9dc;         /* Outer page background (warm cream) */
-  --surface-body: #faf7f0;         /* Rounded body container background */
-  --surface-raised: #ffffff;
-  --surface-sunken: rgba(52, 46, 38, 0.04);
+  /* --- Content backgrounds --- */
+  --content-background-elevated: #ffffff;  /* Body, nav, raised surfaces */
+  --content-background-base: #f7f5f0;      /* Section cream, sits on elevated */
+  --content-background-overlay: rgba(104, 67, 0, 0.08);
+  --content-background-sunken: rgba(52, 46, 38, 0.04);
 
   /* --- Border --- */
   --border-subtle: rgba(52, 46, 38, 0.08);
@@ -84,10 +83,10 @@
   --color-content-secondary: var(--content-secondary);
   --color-content-tertiary: var(--content-tertiary);
 
-  --color-surface-page: var(--surface-page);
-  --color-surface-body: var(--surface-body);
-  --color-surface-raised: var(--surface-raised);
-  --color-surface-sunken: var(--surface-sunken);
+  --color-background-elevated: var(--content-background-elevated);
+  --color-background-base: var(--content-background-base);
+  --color-background-overlay: var(--content-background-overlay);
+  --color-background-sunken: var(--content-background-sunken);
 
   --color-border-subtle: var(--border-subtle);
   --color-border-default: var(--border-default);
@@ -149,11 +148,11 @@
 
 /* --- Base --- */
 html {
-  background: var(--surface-page);
+  background: var(--content-background-elevated, #fff);
 }
 
 body {
-  background: var(--surface-page);
+  background: var(--content-background-elevated, #fff);
   color: var(--content-primary);
   font-family: var(--font-aktiv-grotesk, sans-serif);
   -webkit-font-smoothing: antialiased;

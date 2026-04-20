@@ -74,9 +74,9 @@ export default function RootLayout({
       lang="en"
       className={`antialiased ${mediaSans.variable} ${aktivGrotesk.variable} ${fragmentMono.variable}`}
     >
-      <body className="bg-surface-page text-content-primary">
+      <body className="bg-background-elevated text-content-primary">
         <div className="px-4 pb-4">
-          <div className="relative isolate min-h-dvh overflow-hidden rounded-b-[28px] bg-white">
+          <div className="relative isolate min-h-dvh overflow-hidden rounded-b-[28px] bg-background-elevated">
             <Nav />
             <main>{children}</main>
           </div>
