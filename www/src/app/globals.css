@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+/* ============================================
+   OfferLab Design System — Tailwind v4 Theme
+   ============================================
+   Tokens extracted from Figma (WWW Refresh | Apr '26).
+   Update the :root values below to propagate globally.
+   ============================================ */
+
+:root {
+  /* --- Brand palette --- */
+  --brand-shine: #ffed84;          /* Primary CTA yellow */
+  --brand-shine-hover: #ffe866;
+  --brand-primary: #342e26;        /* Primary content / text brown */
+  --brand-accent: #0e220e;         /* Dark green (nav links) */
+
+  /* --- Content --- */
+  --content-primary: #342e26;
+  --content-secondary: rgba(52, 46, 38, 0.7);
+  --content-tertiary: rgba(52, 46, 38, 0.5);
+  --content-on-brand: #342e26;
+
+  /* --- Content backgrounds --- */
+  --content-background-elevated: #ffffff;  /* Body, nav, raised surfaces */
+  --content-background-base: #f7f5f0;      /* Section cream, sits on elevated */
+  --content-background-overlay: rgba(104, 67, 0, 0.08);
+  --content-background-sunken: rgba(52, 46, 38, 0.04);
+
+  /* --- Border --- */
+  --border-subtle: rgba(52, 46, 38, 0.08);
+  --border-default: rgba(52, 46, 38, 0.12);
+  --border-strong: rgba(52, 46, 38, 0.2);
+
+  /* --- Typography scale --- */
+  --size-xs: 12px;
+  --size-sm: 14px;
+  --size-base: 16px;
+  --size-md: 18px;
+  --size-lg: 20px;
+  --size-xl: 24px;
+  --size-2xl: 32px;
+  --size-3xl: 40px;
+  --size-4xl: 56px;
+  --size-5xl: 72px;
+  --size-6xl: 96px;
+  --size-display: 112px;
+
+  /* --- Radii --- */
+  --rounded-sm: 6px;
+  --rounded-md: 12px;
+  --rounded-lg: 16px;
+  --rounded-xl: 24px;
+  --rounded-2xl: 32px;
+  --rounded-3xl: 48px;
+  --rounded-body: 32px;            /* Main rounded container */
+  --rounded-full: 99999px;
+
+  /* --- Spacing --- */
+  --tracking-tight: -0.02em;
+  --tracking-normal: 0px;
+  --tracking-wide: 0.02em;
+
+  /* --- Shadows --- */
+  --shadow-nav: 0px 4px 8px 0px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0px 8px 24px 0px rgba(52, 46, 38, 0.08);
+  --shadow-card-hover: 0px 12px 32px 0px rgba(52, 46, 38, 0.12);
+
+  /* --- Motion --- */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-expo: cubic-bezier(0.87, 0, 0.13, 1);
+  --ease-out-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --- Tailwind v4 theme extension --- */
+@theme inline {
+  /* Colors */
+  --color-brand-shine: var(--brand-shine);
+  --color-brand-shine-hover: var(--brand-shine-hover);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-accent: var(--brand-accent);
+
+  --color-content-primary: var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-tertiary: var(--content-tertiary);
+
+  --color-background-elevated: var(--content-background-elevated);
+  --color-background-base: var(--content-background-base);
+  --color-background-overlay: var(--content-background-overlay);
+  --color-background-sunken: var(--content-background-sunken);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+
+  /* Fonts */
+  --font-sans: var(--font-aktiv-grotesk), sans-serif;
+  --font-display: var(--font-media-sans), sans-serif;
+  --font-mono: var(--font-fragment-mono), monospace;
+
+  /* Type scale */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-md: 18px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 40px;
+  --text-4xl: 56px;
+  --text-5xl: 72px;
+  --text-6xl: 96px;
+  --text-display: 112px;
+
+  /* Radii */
+  --radius-body: 32px;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-3xl: 48px;
+  --radius-full: 99999px;
+
+  /* Shadows */
+  --shadow-nav: 0px 4px 8px 0px rgba(0, 0, 0, 0.08);
+  --shadow-card: 0px 8px 24px 0px rgba(52, 46, 38, 0.08);
+  --shadow-card-hover: 0px 12px 32px 0px rgba(52, 46, 38, 0.12);
+
+  /* Animation */
+  --animate-float: float 6s var(--ease-in-out-expo) infinite;
+  --animate-drift: drift 20s linear infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+@keyframes drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-40px); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* --- Base --- */
+html {
+  background: var(--content-background-elevated, #fff);
+}
+
+body {
+  background: var(--content-background-elevated, #fff);
+  color: var(--content-primary);
+  font-family: var(--font-aktiv-grotesk, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
+
+canvas { display: block; }
