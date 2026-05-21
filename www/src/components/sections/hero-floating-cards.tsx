@@ -3,102 +3,82 @@
 import { useEffect, useRef } from "react";
 import { gsap } from "@/lib/gsap";
 
-/**
- * Floating product card data.
- *
- * Positions are expressed as % of the hero container so the layout
- * scales with viewport width. Cards drift gently up/down continuously,
- * with a slow right-to-left drift applied to the whole track.
- *
- * Inspired by the shop.app hero treatment.
- */
-type FloatingCard = {
+type CardGroup = {
   id: string;
-  size: "sm" | "lg";
-  /** Percent from left (relative to hero container) */
-  xPct: number;
-  /** Offset from top in pixels */
-  y: number;
-  /** Rotation in degrees */
-  rotate: number;
-  /** Background placeholder color while images are not wired up */
-  tone: string;
-  title?: string;
-  brands?: string;
+  large: {
+    leftPct: number;
+    topPct: number;
+    title: string;
+    brands: string;
+    tone: string;
+  };
+  small: {
+    leftPct: number;
+    topPct: number;
+    tone: string;
+  };
 };
 
-const CARDS: FloatingCard[] = [
+const CARD_GROUPS: CardGroup[] = [
   {
-    id: "c1",
-    size: "lg",
-    xPct: 4,
-    y: 60,
-    rotate: -4,
-    tone: "#f4e6d1",
-    title: "The Morning Routine Kit",
-    brands: "Brand One × Brand Two × Brand Three",
+    id: "top-left",
+    large: {
+      leftPct: 1.5,
+      topPct: 16.5,
+      title: "The Move-In Kitchen Kit",
+      brands: "Mise × Cupboard × Foyer",
+      tone: "#e8dfd0",
+    },
+    small: {
+      leftPct: 11.7,
+      topPct: 9.9,
+      tone: "#d4e8d6",
+    },
   },
   {
-    id: "c2",
-    size: "sm",
-    xPct: 12,
-    y: 380,
-    rotate: 5,
-    tone: "#e6d4e4",
+    id: "top-right",
+    large: {
+      leftPct: 74.8,
+      topPct: 5.6,
+      title: "The New Parent Bundle",
+      brands: "Latch × Tenderly × Hush",
+      tone: "#f0dbc9",
+    },
+    small: {
+      leftPct: 84.1,
+      topPct: 27.2,
+      tone: "#f5e0e8",
+    },
   },
   {
-    id: "c3",
-    size: "lg",
-    xPct: 6,
-    y: 620,
-    rotate: 3,
-    tone: "#d4e4d6",
-    title: "The Move-In Starter Kit",
-    brands: "Brand One × Brand Two × Brand Three",
+    id: "bottom-left",
+    large: {
+      leftPct: 8.3,
+      topPct: 71.1,
+      title: "The Dog Walk Set",
+      brands: "Fetch × Trail × Paws",
+      tone: "#e6d4e4",
+    },
+    small: {
+      leftPct: 4.5,
+      topPct: 57.9,
+      tone: "#f5dbc5",
+    },
   },
   {
-    id: "c4",
-    size: "sm",
-    xPct: 20,
-    y: 820,
-    rotate: -6,
-    tone: "#f0dbc9",
-  },
-  {
-    id: "c5",
-    size: "lg",
-    xPct: 82,
-    y: 40,
-    rotate: 4,
-    tone: "#e8dfd0",
-    title: "The New Parent Bundle",
-    brands: "Brand One × Brand Two × Brand Three",
-  },
-  {
-    id: "c6",
-    size: "sm",
-    xPct: 92,
-    y: 340,
-    rotate: -3,
-    tone: "#d5dfe8",
-  },
-  {
-    id: "c7",
-    size: "lg",
-    xPct: 84,
-    y: 580,
-    rotate: -5,
-    tone: "#f5e7da",
-    title: "The Sunday Reset Bundle",
-    brands: "Brand One × Brand Two × Brand Three",
-  },
-  {
-    id: "c8",
-    size: "sm",
-    xPct: 76,
-    y: 820,
-    rotate: 4,
-    tone: "#e2d8e6",
+    id: "bottom-right",
+    large: {
+      leftPct: 84.4,
+      topPct: 59.7,
+      title: "The Sunday Reset Bundle",
+      brands: "Marisol × Reverie × Bask",
+      tone: "#f5e7da",
+    },
+    small: {
+      leftPct: 72.5,
+      topPct: 75.9,
+      tone: "#d5dfe8",
+    },
   },
 ];
 
@@ -111,51 +91,40 @@ export function HeroFloatingCards() {
 
     const cards = container.querySelectorAll<HTMLElement>("[data-card]");
 
-    // Intro: cards fade + scale + rise in, with a gentle stagger from outside → in.
-    gsap.set(cards, { opacity: 0, y: 40, scale: 0.92 });
+    gsap.set(cards, {
+      rotateY: -90,
+      opacity: 0,
+      transformPerspective: 800,
+      transformOrigin: "center center",
+    });
+
     gsap.to(cards, {
+      rotateY: 0,
       opacity: 1,
-      y: 0,
-      scale: 1,
-      duration: 1.2,
-      ease: "expo.out",
+      duration: 0.9,
+      ease: "power2.out",
       stagger: {
         each: 0.08,
         from: "random",
       },
-      delay: 0.2,
+      delay: 0.3,
     });
 
-    // Continuous gentle floating loop — each card has its own phase.
     const floatTweens = Array.from(cards).map((card, i) => {
-      const amp = 10 + (i % 3) * 4; // 10-18px
-      const dur = 5 + (i % 4) * 0.8; // 5-7.4s
+      const amp = 8 + (i % 3) * 4;
+      const dur = 5 + (i % 4) * 0.8;
       return gsap.to(card, {
         y: `+=${amp}`,
         duration: dur,
         ease: "sine.inOut",
         yoyo: true,
         repeat: -1,
-        delay: i * 0.15,
+        delay: 0.9 + i * 0.15,
       });
-    });
-
-    // Slow right-to-left drift for the whole formation.
-    const driftTween = gsap.to(cards, {
-      x: "-=30",
-      duration: 12,
-      ease: "sine.inOut",
-      yoyo: true,
-      repeat: -1,
-      stagger: {
-        each: 0.3,
-        from: "start",
-      },
     });
 
     return () => {
       floatTweens.forEach((t) => t.kill());
-      driftTween.kill();
     };
   }, []);
 
@@ -164,68 +133,73 @@ export function HeroFloatingCards() {
       ref={containerRef}
       aria-hidden="true"
       className="pointer-events-none absolute inset-0 overflow-hidden"
+      style={{ perspective: "1200px" }}
     >
       <div className="relative mx-auto h-full max-w-[1680px]">
-        {CARDS.map((card) => (
-          <FloatingCard key={card.id} card={card} />
+        {CARD_GROUPS.map((group) => (
+          <div key={group.id}>
+            <LargeCard card={group.large} />
+            <SmallTile tile={group.small} />
+          </div>
         ))}
       </div>
     </div>
   );
 }
 
-function FloatingCard({ card }: { card: FloatingCard }) {
-  const isLarge = card.size === "lg";
-  const width = isLarge ? 205 : 140;
-  const height = isLarge ? 245 : 140;
-
+function LargeCard({
+  card,
+}: {
+  card: CardGroup["large"];
+}) {
   return (
     <div
       data-card
-      className="absolute origin-center"
+      className="absolute"
       style={{
-        left: `${card.xPct}%`,
-        top: `${card.y}px`,
-        width: `${width}px`,
-        height: `${height}px`,
-        transform: `rotate(${card.rotate}deg)`,
+        left: `${card.leftPct}%`,
+        top: `${card.topPct}%`,
+        width: "204px",
       }}
     >
-      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[var(--radius-2xl)] bg-white p-3 shadow-[var(--shadow-card)]">
-        {/* Product image placeholder — swap for real <Image> when assets arrive */}
+      <div className="flex w-full flex-col gap-[6px] rounded-[28px] border border-border-subtle bg-white p-[13px] shadow-[8px_8px_32px_rgba(0,0,0,0.1)]">
         <div
-          className="relative flex-1 rounded-[var(--radius-lg)]"
+          className="aspect-square w-full rounded-[16px]"
           style={{ background: card.tone }}
-        >
-          <div className="absolute inset-0 flex items-center justify-center opacity-40">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="text-content-primary"
-            >
-              <path d="M20 7 12 3 4 7v10l8 4 8-4V7Z" />
-              <path d="m4 7 8 4 8-4" />
-              <path d="M12 21V11" />
-            </svg>
-          </div>
+        />
+        <div className="px-[1.5px]">
+          <p className="truncate text-xs font-semibold leading-[16px] tracking-[-0.2px] text-content-primary">
+            {card.title}
+          </p>
+          <p className="truncate text-xs leading-[16px] tracking-[-0.2px] text-content-tertiary">
+            {card.brands}
+          </p>
         </div>
-
-        {/* Caption (large cards only) */}
-        {isLarge && card.title && (
-          <div className="mt-3 px-1 pb-1">
-            <p className="truncate text-xs font-semibold text-content-primary">
-              {card.title}
-            </p>
-            <p className="truncate text-xs text-content-secondary">
-              {card.brands}
-            </p>
-          </div>
-        )}
       </div>
+    </div>
+  );
+}
+
+function SmallTile({
+  tile,
+}: {
+  tile: CardGroup["small"];
+}) {
+  return (
+    <div
+      data-card
+      className="absolute"
+      style={{
+        left: `${tile.leftPct}%`,
+        top: `${tile.topPct}%`,
+        width: "140px",
+        height: "140px",
+      }}
+    >
+      <div
+        className="h-full w-full overflow-hidden rounded-[28px] border border-white shadow-[8px_8px_64px_rgba(0,0,0,0.1)]"
+        style={{ background: tile.tone }}
+      />
     </div>
   );
 }
