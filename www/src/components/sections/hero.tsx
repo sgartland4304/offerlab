@@ -11,12 +11,12 @@ import { HeroSearchBox } from "./hero-search-box";
  */
 export function Hero() {
   return (
-    <section className="relative min-h-dvh overflow-hidden bg-background-base pb-[var(--spacing-section,6rem)] pt-[200px]">
+    <section className="relative min-h-dvh overflow-hidden bg-background-base">
       {/* Background floating cards — render first so they sit behind text */}
       <HeroFloatingCards />
 
-      {/* Foreground content */}
-      <div className="relative z-10 mx-auto flex max-w-[1680px] flex-col items-center px-8 text-center">
+      {/* Foreground content — centered both axes within the full-height hero */}
+      <div className="relative z-10 mx-auto flex min-h-dvh max-w-[1680px] flex-col items-center justify-center px-8 text-center">
         <h1 className="mx-auto max-w-[1100px] text-balance font-display text-[clamp(3rem,7vw,112px)] font-bold leading-[0.95] tracking-[var(--tracking-tight)] text-content-primary">
           Your next customer is already
           <br />
