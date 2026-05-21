@@ -38,14 +38,14 @@ const CARD_GROUPS: CardGroup[] = [
   {
     id: "top-right",
     large: {
-      leftPct: 74.8,
+      leftPct: 72,
       topPct: 5.6,
       title: "The New Parent Bundle",
       brands: "Latch × Tenderly × Hush",
       tone: "#f0dbc9",
     },
     small: {
-      leftPct: 84.1,
+      leftPct: 80,
       topPct: 27.2,
       tone: "#f5e0e8",
     },
@@ -68,14 +68,14 @@ const CARD_GROUPS: CardGroup[] = [
   {
     id: "bottom-right",
     large: {
-      leftPct: 84.4,
+      leftPct: 78,
       topPct: 59.7,
       title: "The Sunday Reset Bundle",
       brands: "Marisol × Reverie × Bask",
       tone: "#f5e7da",
     },
     small: {
-      leftPct: 72.5,
+      leftPct: 68,
       topPct: 75.9,
       tone: "#d5dfe8",
     },
