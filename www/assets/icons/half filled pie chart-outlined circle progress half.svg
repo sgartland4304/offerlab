@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 24 24">
+  <g opacity=".9">
+    <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-2.857a7.143 7.143 0 1 1 0-14.286 7.143 7.143 0 0 1 0 14.286Z"/>
+    <path d="M17.101 12A5.101 5.101 0 0 1 12 17.1V6.9a5.103 5.103 0 0 1 5.1 5.1h.001Z"/>
+  </g>
+</svg>
