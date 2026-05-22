@@ -422,26 +422,35 @@ def build_prompt(cat: dict) -> str:
         f"space around the product.\n\n"
 
         # Lighting
-        f"Lighting: Soft directional studio lighting coming from the upper-"
-        f"left, creating a natural, elongated cast shadow falling toward the "
-        f"lower-right of the product. The shadow should be soft-edged and "
-        f"realistic — not a hard drop-shadow. The product appears to float "
-        f"subtly above the surface with dimensional depth.\n\n"
+        f"Lighting: The product is lit with soft, even studio lighting. "
+        f"The product casts a natural floor shadow — a soft, elongated "
+        f"shadow falling to the lower-right on the colored surface beneath "
+        f"it. The shadow should be realistic and soft-edged, giving the "
+        f"product a grounded, 3D feel. The lighting should NOT create any "
+        f"visible highlights, gradients, light streaks, or tonal shifts "
+        f"on the background surface itself.\n\n"
 
         # Color palette / Background
-        f"Color palette & Background: A vibrant monochromatic "
-        f"{cat['color_name']} background, approximately hex {cat['color']}. "
-        f"The background is NOT a flat fill — it has subtle light refraction, "
-        f"gentle gradient variation, and soft tonal shifts as if lit by warm "
-        f"studio light on a seamless paper backdrop. The background wraps "
-        f"beneath the product, creating a continuous floor/wall surface.\n\n"
+        f"Color palette & Background: The entire background is a FLAT, "
+        f"SOLID, UNIFORM {cat['color_name']} color, approximately hex "
+        f"{cat['color']}. The background must be completely uniform — one "
+        f"single solid color with absolutely NO gradients, NO lighting "
+        f"effects, NO texture, NO vignetting, NO tonal variation, NO "
+        f"reflections, NO atmospheric haze. Think of it as a perfectly "
+        f"flat colored seamless paper backdrop where the floor and wall "
+        f"are the exact same solid color with no visible horizon line. "
+        f"The ONLY variation on the background should be the product's "
+        f"cast shadow on the floor area.\n\n"
 
         # Negative constraints
-        f"Do NOT include: any added text overlays, typography, captions, "
-        f"labels, watermarks, borders, frames, logos beyond what exists on "
-        f"the real product itself, people, hands, multiple products, or any "
-        f"additional props. No studio equipment visible. No Photoshop "
-        f"artifacts. Just the product, its shadow, and the colored background."
+        f"Do NOT include: any gradients or lighting effects on the "
+        f"background, pedestals, platforms, surfaces with texture, any "
+        f"added text overlays, typography, captions, labels, watermarks, "
+        f"borders, frames, logos beyond what exists on the real product "
+        f"itself, people, hands, multiple products, or any additional "
+        f"props. No studio equipment visible. No visible horizon line. "
+        f"Just the product, its floor shadow, and the solid colored "
+        f"background."
     )
 
 
